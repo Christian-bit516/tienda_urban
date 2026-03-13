@@ -3,7 +3,8 @@ import axios from 'axios';
 import { 
   ShoppingCart, Search, X, Trash2, CheckCircle, 
   Facebook, Instagram, Twitter, MapPin, Phone, Mail, 
-  Truck, ShieldCheck, CreditCard, Star, ArrowLeft, ChevronRight, Lock
+  Truck, ShieldCheck, CreditCard, ArrowLeft, ChevronRight, Lock,
+  Minus, Plus, SlidersHorizontal
 } from 'lucide-react';
 import './App.css';
 import './index.css';
@@ -11,13 +12,20 @@ import './index.css';
 function App() {
   // --- ESTADOS DE DATOS ---
   const [productos, setProductos] = useState([]);
-  const [filtro, setFiltro] = useState('Todos');
+  
+  // --- ESTADOS DE FILTROS ---
+  const [filtroCategoria, setFiltroCategoria] = useState('Todos');
+  const [filtroGenero, setFiltroGenero] = useState('Todos');
+  const [filtroPrecio, setFiltroPrecio] = useState(1000);
+  const [filtroTalla, setFiltroTalla] = useState('Todas');
+
   const [busqueda, setBusqueda] = useState('');
   const [carrito, setCarrito] = useState([]);
   const [verCarrito, setVerCarrito] = useState(false);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false); 
   
   // --- ESTADOS DE NAVEGACIÓN Y UX ---
-  const [vista, setVista] = useState('inicio'); // 'inicio', 'detalle', 'checkout'
+  const [vista, setVista] = useState('inicio'); 
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [notificacion, setNotificacion] = useState(null);
   const [compraExitosa, setCompraExitosa] = useState(false);
@@ -25,8 +33,16 @@ function App() {
   // --- ESTADOS DE SELECCIÓN DE PRODUCTO ---
   const [tallaSeleccionada, setTallaSeleccionada] = useState('M');
   const [colorSeleccionado, setColorSeleccionado] = useState('Negro');
+  const [cantidadSeleccionada, setCantidadSeleccionada] = useState(1); 
 
-  // Colores simulados para el dinamismo
+  // --- ESTADO PARA SLIDER INICIO ---
+  const [slideIndex, setSlideIndex] = useState(0);
+  const slides = [
+    { title: "NUEVA TEMPORADA", img: "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?q=80&w=2000&auto=format&fit=crop" },
+    { title: "STREETWEAR 2026", img: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=2000&auto=format&fit=crop" },
+    { title: "COLECCIÓN OTOÑO", img: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=2000&auto=format&fit=crop" }
+  ];
+
   const coloresDisponibles = [
     { nombre: 'Negro', hex: '#1a1a1a' },
     { nombre: 'Blanco', hex: '#f8f9fa' },
@@ -40,11 +56,27 @@ function App() {
       .catch(err => console.error("Error al cargar:", err));
   }, []);
 
-  // --- LÓGICA DE FILTRADO ---
+  useEffect(() => {
+    if(vista === 'inicio') {
+      const interval = setInterval(() => {
+        setSlideIndex((prev) => (prev + 1) % slides.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [vista, slides.length]);
+
+  // --- LÓGICA DE FILTRADO (IGNORANDO MAYÚSCULAS/MINÚSCULAS) ---
   const productosFiltrados = productos.filter(p => {
-    const coincideFiltro = filtro === 'Todos' || p.categoria === filtro;
+    const catDB = p.categoria ? p.categoria.toLowerCase() : '';
+    const genDB = p.genero ? p.genero.toLowerCase() : '';
+    
+    const coincideCategoria = filtroCategoria === 'Todos' || catDB === filtroCategoria.toLowerCase();
     const coincideBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
-    return coincideFiltro && coincideBusqueda;
+    const coincideGenero = filtroGenero === 'Todos' || genDB === filtroGenero.toLowerCase();
+    const coincidePrecio = parseFloat(p.precio || 0) <= filtroPrecio;
+    const coincideTalla = filtroTalla === 'Todas' || (p.tallas && p.tallas.includes(filtroTalla));
+    
+    return coincideCategoria && coincideBusqueda && coincideGenero && coincidePrecio && coincideTalla;
   });
 
   const productosRelacionados = productoSeleccionado 
@@ -52,11 +84,18 @@ function App() {
     : [];
 
   // --- GESTIÓN DEL CARRITO ---
-  const agregarAlCarrito = (p, mostrarCarrito = true) => {
-    setCarrito([...carrito, { ...p, talla: tallaSeleccionada, color: colorSeleccionado }]);
-    setNotificacion(`¡${p.nombre} agregado a tu bolsa!`);
-    setTimeout(() => setNotificacion(null), 3000);
-    if (mostrarCarrito) setVerCarrito(true);
+  const agregarAlCarrito = (p, irAPagoDirecto = false) => {
+    const nuevosItems = Array(cantidadSeleccionada).fill({ ...p, talla: tallaSeleccionada, color: colorSeleccionado });
+    setCarrito([...carrito, ...nuevosItems]);
+    
+    if (irAPagoDirecto) {
+      setVista('checkout');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setNotificacion(`¡Agregado a tu bolsa!`);
+      setTimeout(() => setNotificacion(null), 3000);
+      setVerCarrito(true);
+    }
   };
 
   const eliminarDelCarrito = (index) => setCarrito(carrito.filter((_, i) => i !== index));
@@ -65,51 +104,40 @@ function App() {
   // --- NAVEGACIÓN ---
   const verDetalleProducto = (prod) => {
     setProductoSeleccionado(prod);
-    setTallaSeleccionada('M'); // Resetear selección por defecto
+    setTallaSeleccionada('M'); 
     setColorSeleccionado('Negro');
+    setCantidadSeleccionada(1);
     setVista('detalle');
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const irAlInicio = () => {
     setVista('inicio');
     setProductoSeleccionado(null);
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const irAlCheckout = () => {
     setVerCarrito(false);
     setVista('checkout');
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- PROCESAR PAGO (CHECKOUT) ---
   const handleFinalizarCompra = (e) => {
-    e.preventDefault(); // Evita recargar la página
-    
-    // Aquí podrías capturar los datos del formulario, por ahora enviamos el carrito al backend
+    e.preventDefault(); 
     axios.post('http://localhost/tienda_urban/backend/api/finalizar_compra.php', { carrito, total: total.toFixed(2) })
       .then(res => {
         if (res.data.status === "ok") {
           setCompraExitosa(true);
           setCarrito([]);
-          setTimeout(() => { 
-            setCompraExitosa(false); 
-            irAlInicio(); // Volver al inicio tras comprar
-          }, 4000);
         }
       });
   };
 
   return (
     <div className="app-container">
-      
-      {/* TOAST DE NOTIFICACIÓN */}
-      {notificacion && (
-        <div className="toast"><CheckCircle size={18} /> {notificacion}</div>
-      )}
+      {notificacion && <div className="toast"><CheckCircle size={18} /> {notificacion}</div>}
 
-      {/* NAVBAR GENERAL */}
       <nav className="navbar">
         <div className="logo" onClick={irAlInicio}>
           URBAN<span>STORE</span>
@@ -139,24 +167,67 @@ function App() {
           ========================================= */}
       {vista === 'inicio' && (
         <>
-          <header className="hero-banner">
-            <div className="hero-content">
-              <span className="hero-tag">NUEVA TEMPORADA</span>
-              <h1>DOMINA LAS CALLES</h1>
-              <p>Minimalismo y actitud. Descubre nuestra colección urbana.</p>
-              <button className="hero-btn" onClick={() => document.getElementById('catalogo').scrollIntoView({behavior: 'smooth'})}>
-                Ver Catálogo
-              </button>
-            </div>
+          <header className="slider-container">
+            {slides.map((slide, index) => (
+              <div key={index} className={`slide ${index === slideIndex ? 'active' : ''}`} style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url(${slide.img})` }}>
+                <div className="hero-content">
+                  <h1>{slide.title}</h1>
+                  <button className="hero-btn" onClick={() => document.getElementById('catalogo').scrollIntoView({behavior: 'smooth'})}>
+                    Ver Catálogo
+                  </button>
+                </div>
+              </div>
+            ))}
           </header>
 
-          <section className="filter-section">
-            {['Todos', 'Poleras', 'Pantalones', 'Zapatillas', 'Accesorios'].map(cat => (
-              <button key={cat} className={`filter-tab ${filtro === cat ? 'active' : ''}`} onClick={() => setFiltro(cat)}>{cat}</button>
-            ))}
+          <section className="brands-section">
+            <h3 className="section-subtitle">NUESTRAS MARCAS</h3>
+            <div className="brands-logos">
+              <span className="brand-txt">adidas</span>
+              <span className="brand-txt">NIKE</span>
+              <span className="brand-txt">PUMA</span>
+              <span className="brand-txt">new balance</span>
+              <span className="brand-txt">asics</span>
+              <span className="brand-txt">SPRAYGROUND</span>
+            </div>
           </section>
 
-          <main id="catalogo" className="products-grid">
+          <section className="visual-categories">
+            <div className="v-cat-box" style={{backgroundImage: "url('https://images.unsplash.com/photo-1617137968427-85924c800a22?q=80&w=800&auto=format&fit=crop')"}} 
+                 onClick={() => { setFiltroGenero('Hombre'); setFiltroCategoria('Todos'); document.getElementById('catalogo').scrollIntoView({behavior: 'smooth'}); }}>
+              <span className="v-cat-label">HOMBRE</span>
+            </div>
+            
+            <div className="v-cat-box" style={{backgroundImage: "url('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=800&auto=format&fit=crop')"}} 
+                 onClick={() => { setFiltroGenero('Mujer'); setFiltroCategoria('Todos'); document.getElementById('catalogo').scrollIntoView({behavior: 'smooth'}); }}>
+              <span className="v-cat-label">MUJER</span>
+            </div>
+            
+            <div className="v-cat-box" style={{backgroundImage: "url('https://images.unsplash.com/photo-1547949007-5350b9866894?q=80&w=800&auto=format&fit=crop')"}} 
+                 onClick={() => { setFiltroCategoria('Accesorios'); setFiltroGenero('Todos'); document.getElementById('catalogo').scrollIntoView({behavior: 'smooth'}); }}>
+              <span className="v-cat-label">ACCESORIOS</span>
+            </div>
+            
+            <div className="v-cat-box" style={{backgroundImage: "url('https://images.unsplash.com/photo-1562183241-b937e95585b6?q=80&w=800&auto=format&fit=crop')"}} 
+                 onClick={() => { setFiltroCategoria('Limpieza'); setFiltroGenero('Todos'); document.getElementById('catalogo').scrollIntoView({behavior: 'smooth'}); }}>
+              <span className="v-cat-label">LIMPIEZA</span>
+            </div>
+          </section>
+
+          <div className="filter-bar-header" id="catalogo">
+            <h2>Nuevos Lanzamientos</h2>
+            <button className="open-filter-btn" onClick={() => setMostrarFiltros(true)}>
+              <SlidersHorizontal size={18} /> Filtrar y Ordenar
+            </button>
+          </div>
+
+          {productosFiltrados.length === 0 && (
+            <div style={{textAlign: 'center', padding: '50px', color: '#888', fontSize: '1.2rem', fontWeight: 'bold'}}>
+              No se encontraron productos con estos filtros.
+            </div>
+          )}
+
+          <main className="products-grid">
             {productosFiltrados.map(prod => (
               <div key={prod.id} className="product-card" onClick={() => verDetalleProducto(prod)}>
                 <div className="image-wrapper">
@@ -175,82 +246,151 @@ function App() {
       )}
 
       {/* =========================================
-          VISTA 2: DETALLE DEL PRODUCTO
+          MENÚ LATERAL DE FILTROS
+          ========================================= */}
+      {mostrarFiltros && (
+        <>
+          <div className="overlay" onClick={() => setMostrarFiltros(false)}></div>
+          <div className="filter-sidebar">
+            <div className="filter-header">
+              <h3>Filtrar y Ordenar</h3>
+              <X className="close-cart" onClick={() => setMostrarFiltros(false)} />
+            </div>
+            
+            <div className="filter-content">
+              <div className="filter-group-side">
+                <h4>Género</h4>
+                {['Todos', 'Hombre', 'Mujer'].map(g => (
+                  <label key={g} className="filter-radio">
+                    <input type="radio" name="genero" checked={filtroGenero === g} onChange={() => setFiltroGenero(g)} /> {g}
+                  </label>
+                ))}
+              </div>
+
+              <div className="filter-group-side">
+                <h4>Categoría</h4>
+                {['Todos', 'Poleras', 'Pantalones', 'Zapatillas', 'Accesorios', 'Limpieza'].map(c => (
+                  <label key={c} className="filter-radio">
+                    <input type="radio" name="categoria" checked={filtroCategoria === c} onChange={() => setFiltroCategoria(c)} /> {c}
+                  </label>
+                ))}
+              </div>
+
+              <div className="filter-group-side">
+                <h4>Talla</h4>
+                <div className="tallas-grid-side">
+                  {['Todas', 'S', 'M', 'L', 'XL', 'XXL'].map(t => (
+                    <button key={t} className={`side-talla-btn ${filtroTalla === t ? 'active' : ''}`} onClick={() => setFiltroTalla(t)}>{t}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-group-side">
+                <h4>Precio Máximo: S/ {filtroPrecio}</h4>
+                <input type="range" min="0" max="1000" step="10" value={filtroPrecio} onChange={(e) => setFiltroPrecio(e.target.value)} className="price-slider-side" />
+              </div>
+            </div>
+            
+            <div className="filter-footer">
+              <button className="reset-filter-btn" onClick={() => {setFiltroCategoria('Todos'); setFiltroGenero('Todos'); setFiltroPrecio(1000); setFiltroTalla('Todas');}}>Borrar todo</button>
+              <button className="apply-filter-btn" onClick={() => setMostrarFiltros(false)}>Ver {productosFiltrados.length} artículos</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* =========================================
+          VISTA 2: DETALLE DEL PRODUCTO MEJORADO
           ========================================= */}
       {vista === 'detalle' && productoSeleccionado && (
         <div className="product-page">
           <div className="breadcrumb">
             <span onClick={irAlInicio}>Inicio</span> <ChevronRight size={14} /> 
-            <span onClick={() => { setFiltro(productoSeleccionado.categoria); irAlInicio(); }}>{productoSeleccionado.categoria}</span> <ChevronRight size={14} /> 
+            <span onClick={() => { setFiltroCategoria(productoSeleccionado.categoria); irAlInicio(); }}>{productoSeleccionado.categoria}</span> <ChevronRight size={14} /> 
             <span className="current">{productoSeleccionado.nombre}</span>
           </div>
 
-          <button className="back-btn" onClick={irAlInicio}><ArrowLeft size={18} /> Volver</button>
+          <button className="back-btn" onClick={irAlInicio}><ArrowLeft size={18} /> Volver al catálogo</button>
 
           <div className="product-detail-container">
-            <div className="product-detail-image">
-              <img src={productoSeleccionado.imagen} alt={productoSeleccionado.nombre} />
+            {/* SECCIÓN IMAGEN */}
+            <div className="product-detail-image-wrapper">
+              <img src={productoSeleccionado.imagen} alt={productoSeleccionado.nombre} className="product-detail-img" />
             </div>
             
+            {/* SECCIÓN INFORMACIÓN */}
             <div className="product-detail-info">
-              <h1 className="detail-title">{productoSeleccionado.nombre}</h1>
-              <p className="detail-price">S/ {productoSeleccionado.precio}</p>
+              <div className="detail-header">
+                <h1 className="detail-title">{productoSeleccionado.nombre}</h1>
+                <p className="detail-price">S/ {productoSeleccionado.precio}</p>
+              </div>
+              
               <div className="detail-description">
-                <p>Diseño exclusivo para el entorno urbano. Materiales de alta resistencia y transpirabilidad superior. Hecho para destacar.</p>
+                <p>Diseño exclusivo para el entorno urbano. Materiales de alta resistencia y transpirabilidad superior. Hecho para destacar y brindar máxima comodidad durante todo el día.</p>
               </div>
 
-              {/* SELECTOR DE COLOR */}
               <div className="options-selector">
-                <h4>Color: <span style={{fontWeight: 'normal', color: '#666'}}>{colorSeleccionado}</span></h4>
+                <h4>Color seleccionado: <span>{colorSeleccionado}</span></h4>
                 <div className="color-options">
                   {coloresDisponibles.map(color => (
-                    <button 
-                      key={color.nombre}
-                      className={`color-btn ${colorSeleccionado === color.nombre ? 'active' : ''}`}
-                      style={{ backgroundColor: color.hex }}
-                      onClick={() => setColorSeleccionado(color.nombre)}
-                      title={color.nombre}
-                    />
+                    <button key={color.nombre} className={`color-btn ${colorSeleccionado === color.nombre ? 'active' : ''}`} style={{ backgroundColor: color.hex }} onClick={() => setColorSeleccionado(color.nombre)} title={color.nombre} />
                   ))}
                 </div>
               </div>
 
-              {/* SELECTOR DE TALLA */}
               <div className="options-selector">
-                <h4>Talla:</h4>
+                <div className="size-header">
+                  <h4>Selecciona tu talla:</h4>
+                  <span className="size-guide">Guía de tallas</span>
+                </div>
                 <div className="sizes">
-                  {['S', 'M', 'L', 'XL'].map(talla => (
-                    <button 
-                      key={talla} 
-                      className={`size-btn ${tallaSeleccionada === talla ? 'active' : ''}`}
-                      onClick={() => setTallaSeleccionada(talla)}
-                    >
-                      {talla}
-                    </button>
+                  {['S', 'M', 'L', 'XL', 'XXL'].map(talla => (
+                    <button key={talla} className={`size-btn ${tallaSeleccionada === talla ? 'active' : ''}`} onClick={() => setTallaSeleccionada(talla)}>{talla}</button>
                   ))}
                 </div>
               </div>
 
-              <button className="add-to-cart-huge" onClick={() => agregarAlCarrito(productoSeleccionado)}>
-                AGREGAR A LA BOLSA - S/ {productoSeleccionado.precio}
-              </button>
-              
-              <div className="trust-badges">
-                <div className="badge-item"><Truck size={20}/> <span>Envío a todo el Perú</span></div>
-                <div className="badge-item"><ShieldCheck size={20}/> <span>Compra 100% Segura</span></div>
+              <div className="action-buttons-container">
+                <div className="quantity-wrapper">
+                  <span className="qty-label">Cantidad</span>
+                  <div className="quantity-controls">
+                    <button onClick={() => setCantidadSeleccionada(Math.max(1, cantidadSeleccionada - 1))}><Minus size={16}/></button>
+                    <span>{cantidadSeleccionada}</span>
+                    <button onClick={() => setCantidadSeleccionada(cantidadSeleccionada + 1)}><Plus size={16}/></button>
+                  </div>
+                </div>
+
+                <div className="dual-buttons">
+                  <button className="btn-outline" onClick={() => agregarAlCarrito(productoSeleccionado, false)}>AÑADIR A LA CESTA</button>
+                  <button className="btn-solid" onClick={() => agregarAlCarrito(productoSeleccionado, true)}>COMPRAR AHORA</button>
+                </div>
+                
+                <div className="trust-badges">
+                  <div className="badge-item"><ShieldCheck size={20}/> <span>Pagos 100% Seguros. Tus datos están protegidos con nosotros.</span></div>
+                  <div className="badge-item"><Truck size={20}/> <span>Envío garantizado a todo el Perú.</span></div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* SUGERENCIAS */}
+          {/* =========================================
+              SUGERENCIAS DE PRODUCTOS (HERMOSAS)
+              ========================================= */}
           {productosRelacionados.length > 0 && (
             <div className="related-products">
-              <h3>También te podría gustar</h3>
-              <div className="products-grid related-grid">
+              <div className="related-header">
+                <h2>También te podría gustar</h2>
+                <p>Completa tu estilo con estas recomendaciones exclusivas.</p>
+              </div>
+              <div className="products-grid">
                 {productosRelacionados.map(prod => (
                   <div key={prod.id} className="product-card" onClick={() => verDetalleProducto(prod)}>
-                    <div className="image-wrapper"><img src={prod.imagen} alt={prod.nombre} className="product-img" /></div>
+                    <div className="image-wrapper">
+                      <img src={prod.imagen} alt={prod.nombre} className="product-img" />
+                      <div className="quick-view">Ver Detalles</div>
+                    </div>
                     <div className="product-info">
+                      <span className="category-label">{prod.categoria}</span>
                       <h3 className="product-title">{prod.nombre}</h3>
                       <span className="price">S/ {prod.precio}</span>
                     </div>
@@ -270,9 +410,12 @@ function App() {
           {!compraExitosa ? (
             <div className="checkout-container">
               <div className="checkout-form-section">
+                <button className="back-btn checkout-back" onClick={irAlInicio} style={{marginBottom: '20px'}}>
+                  <ArrowLeft size={18} /> Seguir comprando
+                </button>
+
                 <h2><Lock size={20} /> Pago Seguro</h2>
                 <form onSubmit={handleFinalizarCompra} className="checkout-form">
-                  
                   <div className="form-section">
                     <h3>1. Información de Contacto</h3>
                     <input type="email" placeholder="Correo electrónico" required className="checkout-input" />
@@ -319,7 +462,6 @@ function App() {
                 </form>
               </div>
 
-              {/* RESUMEN DE COMPRA EN CHECKOUT */}
               <div className="checkout-summary-section">
                 <h3>Resumen de tu pedido</h3>
                 <div className="checkout-items">
@@ -343,17 +485,21 @@ function App() {
             </div>
           ) : (
             <div className="success-screen">
-              <CheckCircle size={80} color="#000" />
+              <CheckCircle size={80} color="#28a745" />
               <h2>¡Pago Procesado con Éxito!</h2>
               <p>Tu número de orden es: <strong>#URB-{Math.floor(Math.random() * 10000)}</strong></p>
               <p>Te hemos enviado un correo de confirmación con los detalles del envío.</p>
-              <button onClick={irAlInicio} className="hero-btn" style={{background: '#000', color: '#fff', marginTop: '20px'}}>Volver a la Tienda</button>
+              <button onClick={() => { setCompraExitosa(false); irAlInicio(); }} className="success-btn">
+                Volver a la Pantalla Principal
+              </button>
             </div>
           )}
         </div>
       )}
 
-      {/* --- CARRITO LATERAL (Solo visible si no estamos en checkout) --- */}
+      {/* =========================================
+          CARRITO LATERAL
+          ========================================= */}
       {verCarrito && vista !== 'checkout' && (
         <div className="cart-sidebar">
           <div className="cart-header">
@@ -378,7 +524,7 @@ function App() {
           {carrito.length > 0 && (
             <div className="cart-footer">
               <div className="total-box"><span>Subtotal:</span><span className="total-amount">S/ {total.toFixed(2)}</span></div>
-              <button className="checkout-btn" onClick={irAlCheckout}>Ir al Pago Seguro</button>
+              <button className="btn-solid" style={{width:'100%', marginTop:'15px', padding:'18px'}} onClick={irAlCheckout}>Ir al Pago Seguro</button>
             </div>
           )}
         </div>
@@ -386,18 +532,23 @@ function App() {
 
       {/* FOOTER GENERAL */}
       {vista !== 'checkout' && (
-        <footer className="footer">
+        <footer className="footer dark-footer">
           <div className="footer-content">
             <div className="footer-brand">
-              <h2 className="logo">URBAN<span>STORE</span></h2>
+              <h2 className="logo" style={{color:'white'}}>URBAN<span style={{color:'#888'}}>STORE</span></h2>
               <p>Streetwear Premium. Elevando la moda urbana.</p>
             </div>
             <div className="footer-contact">
+              <h3 style={{marginBottom: '15px'}}>Contáctanos</h3>
               <p><MapPin size={16} /> Lima, Perú</p>
-              <div className="social-links" style={{marginTop: '15px', display: 'flex', gap:'15px'}}><Facebook /> <Instagram /> <Twitter /></div>
+              <div className="social-links" style={{marginTop: '15px', display: 'flex', gap:'15px'}}>
+                <div className="social-icon"><Facebook size={20}/></div> 
+                <div className="social-icon"><Instagram size={20}/></div> 
+                <div className="social-icon"><Twitter size={20}/></div>
+              </div>
             </div>
           </div>
-          <div className="footer-bottom"><p>&copy; 2026 URBAN STORE.</p></div>
+          <div className="footer-bottom"><p>&copy; 2026 URBAN STORE. Todos los derechos reservados.</p></div>
         </footer>
       )}
 
