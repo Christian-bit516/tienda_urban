@@ -1,0 +1,21 @@
+/* index.css */
+:root {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  overflow-x: hidden; /* Evita el scroll horizontal */
+}
+
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
