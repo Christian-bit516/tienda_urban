@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { CheckCircle } from 'lucide-react';
+import Lenis from '@studio-freight/lenis';
+import { AnimatePresence, motion } from 'framer-motion';
 
-// Importamos nuestros nuevos componentes separados
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartSidebar from './components/CartSidebar';
@@ -14,7 +15,6 @@ import './App.css';
 import './index.css';
 
 function App() {
-  // ESTADOS PRINCIPALES
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]);
   const [vista, setVista] = useState('inicio'); 
@@ -23,11 +23,34 @@ function App() {
   const [busqueda, setBusqueda] = useState('');
   const [verCarrito, setVerCarrito] = useState(false);
   
-  // ESTADOS DE FILTROS
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [filtroGenero, setFiltroGenero] = useState('Todos');
   const [filtroPrecio, setFiltroPrecio] = useState(1000);
   const [filtroTalla, setFiltroTalla] = useState('Todas');
+
+  // EL SECRETO DEL VIDEO: SCROLL PESADO Y BUTTERY SMOOTH
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.5, // Scroll largo y relajante
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Curva suave
+      direction: 'vertical',
+      gestureDirection: 'vertical',
+      smooth: true,
+      smoothTouch: false,
+    });
+
+    window.lenis = lenis; 
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+    return () => {
+      lenis.destroy();
+      delete window.lenis;
+    };
+  }, []);
 
   useEffect(() => {
     axios.get('http://localhost/tienda_urban/backend/api/get_productos.php')
@@ -35,7 +58,6 @@ function App() {
       .catch(err => console.error("Error al cargar:", err));
   }, []);
 
-  // LÓGICA DE DATOS
   const productosFiltrados = productos.filter(p => {
     const catDB = p.categoria ? p.categoria.toLowerCase() : '';
     const genDB = p.genero ? p.genero.toLowerCase() : '';
@@ -56,8 +78,7 @@ function App() {
     setCarrito([...carrito, ...nuevosItems]);
     
     if (irAPagoDirecto) {
-      setVista('checkout');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      irAlCheckout();
     } else {
       setNotificacion(`¡Agregado a tu bolsa!`);
       setTimeout(() => setNotificacion(null), 3000);
@@ -68,49 +89,72 @@ function App() {
   const eliminarDelCarrito = (index) => setCarrito(carrito.filter((_, i) => i !== index));
   const total = carrito.reduce((sum, p) => sum + parseFloat(p.precio), 0);
 
-  // NAVEGACIÓN
-  const verDetalleProducto = (prod) => { setProductoSeleccionado(prod); setVista('detalle'); window.scrollTo({ top: 0 }); };
-  const irAlInicio = () => { setVista('inicio'); setProductoSeleccionado(null); window.scrollTo({ top: 0 }); };
-  const irAlCheckout = () => { setVerCarrito(false); setVista('checkout'); window.scrollTo({ top: 0 }); };
+  const verDetalleProducto = (prod) => { 
+    setProductoSeleccionado(prod); 
+    setVista('detalle'); 
+  };
+
+  const irAlInicio = () => { 
+    setVista('inicio'); 
+    setProductoSeleccionado(null); 
+  };
+
+  const irAlCheckout = () => { 
+    setVerCarrito(false); 
+    setVista('checkout'); 
+  };
+
+  // CURVA DE ANIMACIÓN PREMIUM PARA TRANSICIONES
+  const pageTransition = { duration: 0.8, ease: [0.22, 1, 0.36, 1] };
 
   return (
     <div className="app-container">
-      {notificacion && <div className="toast"><CheckCircle size={18} /> {notificacion}</div>}
+      <AnimatePresence>
+        {notificacion && (
+          <motion.div className="toast" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+            <CheckCircle size={18} /> {notificacion}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <Navbar 
-        vista={vista} irAlInicio={irAlInicio} 
-        busqueda={busqueda} setBusqueda={setBusqueda} 
-        setVerCarrito={setVerCarrito} carrito={carrito} 
-      />
+      <Navbar vista={vista} irAlInicio={irAlInicio} busqueda={busqueda} setBusqueda={setBusqueda} setVerCarrito={setVerCarrito} carrito={carrito} />
 
-      {vista === 'inicio' && (
-        <Home 
-          productosFiltrados={productosFiltrados} verDetalleProducto={verDetalleProducto}
-          filtroCategoria={filtroCategoria} setFiltroCategoria={setFiltroCategoria}
-          filtroGenero={filtroGenero} setFiltroGenero={setFiltroGenero}
-          filtroPrecio={filtroPrecio} setFiltroPrecio={setFiltroPrecio}
-          filtroTalla={filtroTalla} setFiltroTalla={setFiltroTalla}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {vista === 'inicio' && (
+          <motion.div key="inicio" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={pageTransition}>
+            <Home 
+              productosFiltrados={productosFiltrados} verDetalleProducto={verDetalleProducto}
+              filtroCategoria={filtroCategoria} setFiltroCategoria={setFiltroCategoria}
+              filtroGenero={filtroGenero} setFiltroGenero={setFiltroGenero}
+              filtroPrecio={filtroPrecio} setFiltroPrecio={setFiltroPrecio}
+              filtroTalla={filtroTalla} setFiltroTalla={setFiltroTalla}
+              busqueda={busqueda}
+            />
+          </motion.div>
+        )}
 
-      {vista === 'detalle' && productoSeleccionado && (
-        <ProductDetail 
-          productoSeleccionado={productoSeleccionado} irAlInicio={irAlInicio}
-          setFiltroCategoria={setFiltroCategoria} agregarAlCarrito={agregarAlCarrito}
-          productosRelacionados={productosRelacionados} verDetalleProducto={verDetalleProducto}
-        />
-      )}
+        {vista === 'detalle' && productoSeleccionado && (
+          <motion.div key="detalle" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={pageTransition}>
+            <ProductDetail 
+              productoSeleccionado={productoSeleccionado} irAlInicio={irAlInicio}
+              setFiltroCategoria={setFiltroCategoria} agregarAlCarrito={agregarAlCarrito}
+              productosRelacionados={productosRelacionados} verDetalleProducto={verDetalleProducto}
+            />
+          </motion.div>
+        )}
 
-      {vista === 'checkout' && (
-        <Checkout carrito={carrito} total={total} irAlInicio={irAlInicio} setCarrito={setCarrito} />
-      )}
+        {vista === 'checkout' && (
+          <motion.div key="checkout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={pageTransition}>
+            <Checkout carrito={carrito} total={total} irAlInicio={irAlInicio} setCarrito={setCarrito} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {verCarrito && vista !== 'checkout' && (
-        <CartSidebar 
-          carrito={carrito} setVerCarrito={setVerCarrito} 
-          eliminarDelCarrito={eliminarDelCarrito} total={total} irAlCheckout={irAlCheckout} 
-        />
-      )}
+      <AnimatePresence>
+        {verCarrito && vista !== 'checkout' && (
+          <CartSidebar carrito={carrito} setVerCarrito={setVerCarrito} eliminarDelCarrito={eliminarDelCarrito} total={total} irAlCheckout={irAlCheckout} />
+        )}
+      </AnimatePresence>
 
       {vista !== 'checkout' && <Footer />}
     </div>

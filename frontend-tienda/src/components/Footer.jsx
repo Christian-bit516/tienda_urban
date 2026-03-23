@@ -1,6 +1,6 @@
 import { Facebook, Instagram, Twitter, MapPin } from 'lucide-react';
 
-export default function Footer() {
+export default function Footer({ irAlAdmin }) {
   return (
     <footer className="footer dark-footer">
       <div className="footer-content">
@@ -18,7 +18,16 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      <div className="footer-bottom"><p>&copy; 2026 URBAN STORE. Todos los derechos reservados.</p></div>
+      <div className="footer-bottom">
+        <p>&copy; 2026 URBAN STORE. Todos los derechos reservados.</p>
+        {/* Enlace discreto para entrar al admin */}
+        <p 
+          onClick={irAlAdmin} 
+          style={{ cursor: 'pointer', color: '#333', marginTop: '10px', fontSize: '0.8rem', display: 'inline-block' }}
+        >
+          Acceso Administrador
+        </p>
+      </div>
     </footer>
   );
 }
