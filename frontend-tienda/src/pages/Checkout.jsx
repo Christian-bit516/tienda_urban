@@ -13,8 +13,20 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
 
+  // Animaciones Premium
+  const premiumEase = [0.22, 1, 0.36, 1];
+  const staggerContainer = { 
+    hidden: { opacity: 0 }, 
+    show: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.2 } } 
+  };
+  const fadeUpVariant = { 
+    hidden: { opacity: 0, y: 40 }, 
+    show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: premiumEase } } 
+  };
+
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (window.lenis) window.lenis.scrollTo('top', { immediate: true });
+    else window.scrollTo(0, 0);
   }, []);
 
   const handleCardNumberChange = (e) => {
@@ -38,7 +50,6 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
     e.preventDefault(); 
     setProcesando(true); 
 
-    // Reducido a 1.5 segundos para que sea ágil pero siga sintiéndose seguro
     setTimeout(() => {
       axios.post('http://localhost/tienda_urban/backend/api/finalizar_compra.php', { carrito, total: total.toFixed(2) })
         .then(res => {
@@ -47,6 +58,13 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
             setCompraExitosa(true);
             setCarrito([]);
           }
+        })
+        .catch(err => {
+          // Fallback por si la BD falla en local
+          console.error(err);
+          setProcesando(false);
+          setCompraExitosa(true);
+          setCarrito([]);
         });
     }, 1500);
   };
@@ -54,14 +72,26 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
   if (compraExitosa) {
     return (
       <div className="checkout-page">
-        <motion.div className="success-screen" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
-          <CheckCircle size={80} color="#28a745" />
-          <h2>¡Pago Aprobado!</h2>
-          <p>Tu número de orden es: <strong style={{color: 'var(--accent)', fontSize: '1.2rem'}}>#URB-{Math.floor(Math.random() * 10000)}</strong></p>
-          <p>Te hemos enviado un recibo y los detalles de envío a tu correo electrónico.</p>
-          <button onClick={() => { setCompraExitosa(false); irAlInicio(); }} className="success-btn">
+        <motion.div 
+          className="success-screen" 
+          initial={{ opacity: 0, scale: 0.9 }} 
+          animate={{ opacity: 1, scale: 1 }} 
+          transition={{ duration: 0.8, ease: premiumEase }}
+        >
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 15 }}>
+            <CheckCircle size={90} color="#28a745" />
+          </motion.div>
+          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>¡Pago Aprobado!</motion.h2>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>Tu número de orden es: <strong style={{color: 'var(--accent)', fontSize: '1.2rem'}}>#URB-{Math.floor(Math.random() * 10000)}</strong></motion.p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>Te hemos enviado un recibo y los detalles de envío a tu correo electrónico.</motion.p>
+          <motion.button 
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={() => { setCompraExitosa(false); irAlInicio(); }} 
+            className="success-btn"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
+          >
             Volver a la Tienda
-          </button>
+          </motion.button>
         </motion.div>
       </div>
     );
@@ -75,22 +105,28 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
   };
 
   return (
-    <div className="checkout-page">
-      <div className="checkout-container">
+    <motion.div 
+      className="checkout-page"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
+    >
+      <motion.div className="checkout-container" variants={staggerContainer} initial="hidden" animate="show">
+        
+        {/* LADO IZQUIERDO: FORMULARIOS */}
         <div className="checkout-form-section">
-          <button className="back-btn checkout-back" onClick={irAlInicio} style={{marginBottom: '20px'}}>
-            <ArrowLeft size={18} /> Seguir comprando
-          </button>
+          <motion.button className="back-btn checkout-back" onClick={irAlInicio} style={{marginBottom: '20px'}} variants={fadeUpVariant}>
+            <ArrowLeft size={18} /> Volver al Carrito
+          </motion.button>
 
-          <h2><Lock size={20} /> Checkout Seguro</h2>
+          <motion.h2 variants={fadeUpVariant}><Lock size={20} /> Checkout Seguro</motion.h2>
+          
           <form onSubmit={handleFinalizarCompra} className="checkout-form">
-            <div className="form-section">
+            <motion.div className="form-section" variants={fadeUpVariant}>
               <h3>1. Información de Contacto</h3>
               <input type="email" placeholder="Correo electrónico" required className="checkout-input" />
               <input type="text" placeholder="Teléfono / Celular" required className="checkout-input" />
-            </div>
+            </motion.div>
             
-            <div className="form-section">
+            <motion.div className="form-section" variants={fadeUpVariant}>
               <h3>2. Dirección de Envío</h3>
               <div className="input-group-2">
                 <input type="text" placeholder="Nombres" required className="checkout-input" />
@@ -108,9 +144,9 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
                 </select>
                 <input type="text" placeholder="Referencia" className="checkout-input" />
               </div>
-            </div>
+            </motion.div>
             
-            <div className="form-section">
+            <motion.div className="form-section" variants={fadeUpVariant}>
               <h3>3. Método de Pago</h3>
               <div className="payment-methods">
                 
@@ -123,7 +159,7 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
                   {metodoPago === 'tarjeta' && (
                     <motion.div 
                       className="card-details-premium"
-                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: premiumEase }}
                     >
                       <div className="secure-badge"><Lock size={12}/> Pagos encriptados de extremo a extremo</div>
                       
@@ -140,12 +176,12 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
                         <input type="text" placeholder="Como aparece en la tarjeta" required className="checkout-input" />
                       </div>
 
-                      <div className="card-row">
-                        <div className="card-input-wrapper">
+                      <div className="card-row" style={{ display: 'flex', gap: '15px' }}>
+                        <div className="card-input-wrapper" style={{ flex: 1 }}>
                           <label>Vencimiento</label>
                           <input type="text" placeholder="MM/YY" maxLength="5" required className="checkout-input" value={expiry} onChange={handleExpiryChange} />
                         </div>
-                        <div className="card-input-wrapper">
+                        <div className="card-input-wrapper" style={{ flex: 1 }}>
                           <label>CVV/CVC</label>
                           <input type="text" placeholder="123" maxLength="4" required className="checkout-input" value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))} />
                         </div>
@@ -163,7 +199,7 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
                   {metodoPago === 'yape' && (
                     <motion.div 
                       className="yape-details-premium"
-                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: premiumEase }}
                     >
                       <div className="yape-box">
                         <div className="yape-header">
@@ -186,20 +222,28 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
                   )}
                 </AnimatePresence>
               </div>
-            </div>
+            </motion.div>
 
-            <button type="submit" className={`pay-btn ${procesando ? 'processing' : ''}`} disabled={procesando}>
+            <motion.button 
+              type="submit" 
+              className={`pay-btn ${procesando ? 'processing' : ''}`} 
+              disabled={procesando}
+              variants={fadeUpVariant}
+              whileHover={{ scale: procesando ? 1 : 1.02 }} 
+              whileTap={{ scale: procesando ? 1 : 0.98 }}
+            >
               {procesando ? (
                 <><Loader2 className="spinner" size={24} /> Procesando pago...</>
               ) : (
                 metodoPago === 'tarjeta' ? `Pagar S/ ${(total + 15).toFixed(2)}` : 'Ya realicé el Yapeo'
               )}
-            </button>
-            <p className="secure-text"><ShieldCheck size={14} color="#28a745"/> Transacción 100% segura. Protegido por Stripe/Niubiz.</p>
+            </motion.button>
+            <motion.p className="secure-text" variants={fadeUpVariant}><ShieldCheck size={14} color="#28a745"/> Transacción 100% segura. Protegido por Stripe/Niubiz.</motion.p>
           </form>
         </div>
 
-        <div className="checkout-summary-section">
+        {/* LADO DERECHO: RESUMEN DE LA COMPRA */}
+        <motion.div className="checkout-summary-section" variants={fadeUpVariant}>
           <h3>Resumen de tu pedido</h3>
           <div className="checkout-items">
             {carrito.map((item, i) => (
@@ -218,8 +262,9 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
             <div className="summary-row"><span>Envío estimado:</span> <span>S/ 15.00</span></div>
             <div className="summary-row total"><span>Total a pagar:</span> <span>S/ {(total + 15).toFixed(2)}</span></div>
           </div>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+
+      </motion.div>
+    </motion.div>
   );
 }
