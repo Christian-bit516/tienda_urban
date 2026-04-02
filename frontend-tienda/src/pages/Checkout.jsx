@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Lock, CreditCard, ShieldCheck, CheckCircle, Smartphone, Loader2 } from 'lucide-react';
+import { ArrowLeft, Lock, CreditCard, ShieldCheck, CheckCircle, Smartphone, Loader2, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
@@ -13,16 +13,9 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
 
-  // Animaciones Premium
   const premiumEase = [0.22, 1, 0.36, 1];
-  const staggerContainer = { 
-    hidden: { opacity: 0 }, 
-    show: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.2 } } 
-  };
-  const fadeUpVariant = { 
-    hidden: { opacity: 0, y: 40 }, 
-    show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: premiumEase } } 
-  };
+  const staggerContainer = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } } };
+  const fadeUpVariant = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: premiumEase } } };
 
   useEffect(() => {
     if (window.lenis) window.lenis.scrollTo('top', { immediate: true });
@@ -60,7 +53,6 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
           }
         })
         .catch(err => {
-          // Fallback por si la BD falla en local
           console.error(err);
           setProcesando(false);
           setCompraExitosa(true);
@@ -72,23 +64,18 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
   if (compraExitosa) {
     return (
       <div className="checkout-page">
-        <motion.div 
-          className="success-screen" 
-          initial={{ opacity: 0, scale: 0.9 }} 
-          animate={{ opacity: 1, scale: 1 }} 
-          transition={{ duration: 0.8, ease: premiumEase }}
-        >
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 15 }}>
-            <CheckCircle size={90} color="#28a745" />
+        <motion.div className="success-screen" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: premiumEase }}>
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}>
+            <CheckCircle size={80} color="var(--success)" />
           </motion.div>
-          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>¡Pago Aprobado!</motion.h2>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>Tu número de orden es: <strong style={{color: 'var(--accent)', fontSize: '1.2rem'}}>#URB-{Math.floor(Math.random() * 10000)}</strong></motion.p>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>Te hemos enviado un recibo y los detalles de envío a tu correo electrónico.</motion.p>
+          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>¡Pago Exitoso!</motion.h2>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>Tu orden <strong style={{color: 'var(--accent)'}}>#URB-{Math.floor(Math.random() * 10000)}</strong> está confirmada.</motion.p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} style={{color: 'var(--text-muted)'}}>Te enviamos los detalles a tu correo electrónico.</motion.p>
           <motion.button 
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={() => { setCompraExitosa(false); irAlInicio(); }} 
-            className="success-btn"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
+            className="btn-solid" style={{width: 'auto', padding: '18px 40px', marginTop: '30px'}}
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
           >
             Volver a la Tienda
           </motion.button>
@@ -98,36 +85,56 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
   }
 
   const CardLogo = () => {
-    if (cardType === 'visa') return <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" height="20" />;
-    if (cardType === 'mastercard') return <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" height="24" />;
-    if (cardType === 'amex') return <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg" alt="Amex" height="24" />;
-    return <CreditCard size={24} color="#ccc" />;
+    if (cardType === 'visa') return <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" height="16" />;
+    if (cardType === 'mastercard') return <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" height="20" />;
+    if (cardType === 'amex') return <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg" alt="Amex" height="20" />;
+    return <CreditCard size={20} color="#ccc" />;
   };
 
+  // Agrupar items idénticos en el resumen
+  const carritoAgrupado = carrito.reduce((acc, item) => {
+    const key = `${item.id}-${item.talla}-${item.color}`;
+    if (!acc[key]) {
+      acc[key] = { ...item, cantidadFisica: 1 };
+    } else {
+      acc[key].cantidadFisica += 1;
+    }
+    return acc;
+  }, {});
+
+  const itemsUnicos = Object.values(carritoAgrupado);
+  const envio = total > 200 ? 0 : 15;
+  const totalFinal = total + envio;
+
   return (
-    <motion.div 
-      className="checkout-page"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
-    >
-      <motion.div className="checkout-container" variants={staggerContainer} initial="hidden" animate="show">
+    <motion.div className="checkout-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
+      
+      <div className="checkout-container">
         
-        {/* LADO IZQUIERDO: FORMULARIOS */}
-        <div className="checkout-form-section">
-          <motion.button className="back-btn checkout-back" onClick={irAlInicio} style={{marginBottom: '20px'}} variants={fadeUpVariant}>
+        {/* LADO IZQUIERDO: FORMULARIO */}
+        <motion.div className="checkout-form-section" variants={staggerContainer} initial="hidden" animate="show">
+          <motion.button className="back-btn" onClick={irAlInicio} variants={fadeUpVariant} style={{marginBottom: '30px'}}>
             <ArrowLeft size={18} /> Volver al Carrito
           </motion.button>
 
-          <motion.h2 variants={fadeUpVariant}><Lock size={20} /> Checkout Seguro</motion.h2>
-          
-          <form onSubmit={handleFinalizarCompra} className="checkout-form">
+          <form onSubmit={handleFinalizarCompra}>
+            
+            {/* CONTACTO */}
             <motion.div className="form-section" variants={fadeUpVariant}>
-              <h3>1. Información de Contacto</h3>
+              <div className="section-header">
+                <span className="step-number">1</span>
+                <h3>Información de Contacto</h3>
+              </div>
               <input type="email" placeholder="Correo electrónico" required className="checkout-input" />
               <input type="text" placeholder="Teléfono / Celular" required className="checkout-input" />
             </motion.div>
             
+            {/* ENVÍO */}
             <motion.div className="form-section" variants={fadeUpVariant}>
-              <h3>2. Dirección de Envío</h3>
+              <div className="section-header">
+                <span className="step-number">2</span>
+                <h3>Dirección de Envío</h3>
+              </div>
               <div className="input-group-2">
                 <input type="text" placeholder="Nombres" required className="checkout-input" />
                 <input type="text" placeholder="Apellidos" required className="checkout-input" />
@@ -135,136 +142,145 @@ export default function Checkout({ carrito, total, irAlInicio, setCarrito }) {
               <input type="text" placeholder="DNI / CE" required className="checkout-input" />
               <input type="text" placeholder="Dirección completa (Calle, número, dpto)" required className="checkout-input" />
               <div className="input-group-2">
-                <select required className="checkout-input">
+                <select required className="checkout-input custom-select">
                   <option value="">Selecciona tu Distrito</option>
-                  <option value="lima">Lima Cercado</option>
-                  <option value="miraflores">Miraflores</option>
-                  <option value="surco">Santiago de Surco</option>
-                  <option value="san_borja">San Borja</option>
+                  <option value="lima">Lima Cercado</option><option value="miraflores">Miraflores</option>
+                  <option value="surco">Santiago de Surco</option><option value="san_borja">San Borja</option>
                 </select>
                 <input type="text" placeholder="Referencia" className="checkout-input" />
               </div>
             </motion.div>
             
-            <motion.div className="form-section" variants={fadeUpVariant}>
-              <h3>3. Método de Pago</h3>
+            {/* PAGO */}
+            <motion.div className="form-section" variants={fadeUpVariant} style={{marginBottom: '20px'}}>
+              <div className="section-header">
+                <span className="step-number">3</span>
+                <h3>Método de Pago</h3>
+              </div>
+              <p className="secure-subtitle"><Lock size={14}/> Todas las transacciones son seguras y están encriptadas.</p>
+              
               <div className="payment-methods">
                 
-                <label className={`payment-option ${metodoPago === 'tarjeta' ? 'active-pay' : ''}`}>
-                  <input type="radio" name="pago" value="tarjeta" checked={metodoPago === 'tarjeta'} onChange={() => setMetodoPago('tarjeta')} />
-                  <span>Pago con Tarjeta <span className="card-icons-mini"><img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" height="12"/><img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" height="14"/></span></span>
-                </label>
-                
-                <AnimatePresence>
-                  {metodoPago === 'tarjeta' && (
-                    <motion.div 
-                      className="card-details-premium"
-                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: premiumEase }}
-                    >
-                      <div className="secure-badge"><Lock size={12}/> Pagos encriptados de extremo a extremo</div>
-                      
-                      <div className="card-input-wrapper">
-                        <label>Número de Tarjeta</label>
-                        <div className="input-with-icon">
-                          <input type="text" placeholder="0000 0000 0000 0000" maxLength="19" required className="checkout-input" value={cardNumber} onChange={handleCardNumberChange} />
-                          <div className="card-brand-icon"><CardLogo /></div>
-                        </div>
-                      </div>
-
-                      <div className="card-input-wrapper">
-                        <label>Nombre en la Tarjeta</label>
-                        <input type="text" placeholder="Como aparece en la tarjeta" required className="checkout-input" />
-                      </div>
-
-                      <div className="card-row" style={{ display: 'flex', gap: '15px' }}>
-                        <div className="card-input-wrapper" style={{ flex: 1 }}>
-                          <label>Vencimiento</label>
-                          <input type="text" placeholder="MM/YY" maxLength="5" required className="checkout-input" value={expiry} onChange={handleExpiryChange} />
-                        </div>
-                        <div className="card-input-wrapper" style={{ flex: 1 }}>
-                          <label>CVV/CVC</label>
-                          <input type="text" placeholder="123" maxLength="4" required className="checkout-input" value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <label className={`payment-option ${metodoPago === 'yape' ? 'active-pay' : ''}`}>
-                  <input type="radio" name="pago" value="yape" checked={metodoPago === 'yape'} onChange={() => setMetodoPago('yape')} />
-                  <span>Billetera Digital <span className="yape-badge-mini">Yape</span></span>
-                </label>
-                
-                <AnimatePresence>
-                  {metodoPago === 'yape' && (
-                    <motion.div 
-                      className="yape-details-premium"
-                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: premiumEase }}
-                    >
-                      <div className="yape-box">
-                        <div className="yape-header">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d1/Yape_text_aligment.svg" alt="Yape" height="25" style={{filter: 'brightness(0) invert(1)'}} />
-                          <Smartphone color="white" size={24}/>
-                        </div>
-                        <div className="yape-content">
-                          <div className="yape-qr-bg">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="QR de Pago" className="qr-img" />
+                {/* OPCIÓN: TARJETA */}
+                <div className={`payment-wrapper ${metodoPago === 'tarjeta' ? 'active-wrapper' : ''}`}>
+                  <label className="payment-option">
+                    <input type="radio" name="pago" value="tarjeta" className="hidden-radio" checked={metodoPago === 'tarjeta'} onChange={() => setMetodoPago('tarjeta')} />
+                    <div className="custom-radio"></div>
+                    <span className="payment-title">Tarjeta de Crédito / Débito</span>
+                    <span className="card-icons-mini">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" height="12"/>
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" height="14"/>
+                    </span>
+                  </label>
+                  
+                  <AnimatePresence>
+                    {metodoPago === 'tarjeta' && (
+                      <motion.div className="payment-details-dropdown" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: premiumEase }}>
+                        <div className="card-form-grid">
+                          <div className="card-input-wrapper full-width">
+                            <div className="input-with-icon">
+                              <input type="text" placeholder="Número de Tarjeta" maxLength="19" required className="checkout-input" value={cardNumber} onChange={handleCardNumberChange} />
+                              <div className="card-brand-icon"><CardLogo /></div>
+                            </div>
                           </div>
-                          <div className="yape-instructions">
-                            <p><strong>Paso 1:</strong> Abre tu app Yape o Plin.</p>
-                            <p><strong>Paso 2:</strong> Escanea el código QR.</p>
-                            <p><strong>Paso 3:</strong> Verifica el monto: <b>S/ {(total + 15).toFixed(2)}</b></p>
-                            <p><strong>Paso 4:</strong> Haz clic en el botón de abajo.</p>
+                          <div className="card-input-wrapper full-width">
+                            <input type="text" placeholder="Nombre en la Tarjeta" required className="checkout-input" />
+                          </div>
+                          <div className="card-input-wrapper">
+                            <input type="text" placeholder="Vencimiento (MM/YY)" maxLength="5" required className="checkout-input" value={expiry} onChange={handleExpiryChange} />
+                          </div>
+                          <div className="card-input-wrapper">
+                            <input type="text" placeholder="Código de Seguridad (CVV)" maxLength="4" required className="checkout-input" value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))} />
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* OPCIÓN: YAPE */}
+                <div className={`payment-wrapper ${metodoPago === 'yape' ? 'active-wrapper' : ''}`}>
+                  <label className="payment-option">
+                    <input type="radio" name="pago" value="yape" className="hidden-radio" checked={metodoPago === 'yape'} onChange={() => setMetodoPago('yape')} />
+                    <div className="custom-radio"></div>
+                    <span className="payment-title">Pago con Billetera Digital</span>
+                    <span className="yape-badge-mini">Yape / Plin</span>
+                  </label>
+                  
+                  <AnimatePresence>
+                    {metodoPago === 'yape' && (
+                      <motion.div className="payment-details-dropdown" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: premiumEase }}>
+                        <div className="yape-box">
+                          <div className="yape-content">
+                            <div className="yape-qr-bg">
+                              <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="QR" className="qr-img" />
+                            </div>
+                            <div className="yape-instructions">
+                              <p>1. Abre tu App Yape o Plin.</p>
+                              <p>2. Escanea el código QR.</p>
+                              <p>3. Paga el monto exacto: <b>S/ {totalFinal.toFixed(2)}</b></p>
+                              <p>4. Haz clic en "Confirmar Pago".</p>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
               </div>
             </motion.div>
 
-            <motion.button 
-              type="submit" 
-              className={`pay-btn ${procesando ? 'processing' : ''}`} 
-              disabled={procesando}
-              variants={fadeUpVariant}
-              whileHover={{ scale: procesando ? 1 : 1.02 }} 
-              whileTap={{ scale: procesando ? 1 : 0.98 }}
-            >
+            <motion.button type="submit" className={`pay-btn ${procesando ? 'processing' : ''}`} disabled={procesando} variants={fadeUpVariant}>
               {procesando ? (
-                <><Loader2 className="spinner" size={24} /> Procesando pago...</>
+                <><Loader2 className="spinner" size={24} style={{display:'inline-block', verticalAlign:'middle', marginRight:'10px'}} /> Procesando de forma segura...</>
               ) : (
-                metodoPago === 'tarjeta' ? `Pagar S/ ${(total + 15).toFixed(2)}` : 'Ya realicé el Yapeo'
+                `Pagar S/ ${totalFinal.toFixed(2)}`
               )}
             </motion.button>
-            <motion.p className="secure-text" variants={fadeUpVariant}><ShieldCheck size={14} color="#28a745"/> Transacción 100% segura. Protegido por Stripe/Niubiz.</motion.p>
+            <motion.div className="trust-footer" variants={fadeUpVariant}>
+              <ShieldCheck size={16} color="var(--success)"/> Transacción segura respaldada por Stripe.
+            </motion.div>
           </form>
-        </div>
+        </motion.div>
 
         {/* LADO DERECHO: RESUMEN DE LA COMPRA */}
-        <motion.div className="checkout-summary-section" variants={fadeUpVariant}>
-          <h3>Resumen de tu pedido</h3>
-          <div className="checkout-items">
-            {carrito.map((item, i) => (
-              <div key={i} className="checkout-item">
-                <div className="checkout-item-img" style={{borderRadius: '10px', overflow: 'hidden'}}><img src={item.imagen} alt={item.nombre} /></div>
-                <div className="checkout-item-info">
-                  <h4>{item.nombre}</h4>
-                  <p>Talla: {item.talla} | Color: {item.color}</p>
+        <motion.div className="checkout-summary-section" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2, ease: premiumEase }}>
+          <div className="summary-header-box">
+            <h3>Resumen del Pedido</h3>
+            <ShoppingBag size={20} color="var(--text-muted)"/>
+          </div>
+          
+          <div className="checkout-items-list">
+            {itemsUnicos.map((item, i) => (
+              <div key={i} className="checkout-item-receipt">
+                <div className="receipt-img-wrapper">
+                  <img src={item.imagen} alt={item.nombre} />
+                  <span className="receipt-qty">{item.cantidadFisica}</span>
                 </div>
-                <div className="checkout-item-price">S/ {item.precio}</div>
+                <div className="receipt-info">
+                  <h4>{item.nombre}</h4>
+                  <p>{item.color} / {item.talla}</p>
+                </div>
+                <div className="receipt-price">S/ {(item.precio * item.cantidadFisica).toFixed(2)}</div>
               </div>
             ))}
           </div>
+          
           <div className="summary-totals">
-            <div className="summary-row"><span>Subtotal:</span> <span>S/ {total.toFixed(2)}</span></div>
-            <div className="summary-row"><span>Envío estimado:</span> <span>S/ 15.00</span></div>
-            <div className="summary-row total"><span>Total a pagar:</span> <span>S/ {(total + 15).toFixed(2)}</span></div>
+            <div className="summary-row"><span>Subtotal</span> <span>S/ {total.toFixed(2)}</span></div>
+            <div className="summary-row">
+              <span>Envío</span> 
+              <span>{envio === 0 ? <span style={{color:'var(--success)', fontWeight:'bold'}}>¡GRATIS!</span> : `S/ ${envio.toFixed(2)}`}</span>
+            </div>
+            <div className="summary-row total-row">
+              <span>Total</span> 
+              <span className="total-price-final">S/ {totalFinal.toFixed(2)}</span>
+            </div>
           </div>
         </motion.div>
 
-      </motion.div>
+      </div>
     </motion.div>
   );
 }

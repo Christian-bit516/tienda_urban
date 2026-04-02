@@ -14,7 +14,6 @@ import Checkout from './pages/Checkout';
 import './App.css';
 import './index.css';
 
-// DATOS DE PRUEBA PREMIUM (Fallback)
 const productosDePrueba = [
   { id: 1, nombre: "Hoodie Oversize Essential", precio: "180.00", categoria: "Poleras", genero: "Unisex", tallas: "S,M,L,XL", imagen: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=800&auto=format&fit=crop" },
   { id: 2, nombre: "Pantalón Cargo Techwear", precio: "220.00", categoria: "Pantalones", genero: "Hombre", tallas: "M,L,XL", imagen: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=800&auto=format&fit=crop" },
@@ -28,20 +27,17 @@ function App() {
   const [productos, setProductos] = useState([]);
   
   // ==========================================
-  // PERSISTENCIA DEL CARRITO (LOCALSTORAGE)
+  // PERSISTENCIA DEL CARRITO
   // ==========================================
-  // 1. Inicializa el estado leyendo el localStorage
   const [carrito, setCarrito] = useState(() => {
     try {
       const carritoGuardado = window.localStorage.getItem('urban_cart');
       return carritoGuardado ? JSON.parse(carritoGuardado) : [];
     } catch (error) {
-      console.warn("Error leyendo el carrito guardado", error);
       return [];
     }
   });
 
-  // 2. Guarda en localStorage cada vez que el carrito cambia
   useEffect(() => {
     try {
       window.localStorage.setItem('urban_cart', JSON.stringify(carrito));
@@ -49,19 +45,43 @@ function App() {
       console.error("Error guardando el carrito", error);
     }
   }, [carrito]);
-  // ==========================================
 
+  // ESTADOS DE NAVEGACIÓN Y FILTROS
   const [vista, setVista] = useState('inicio'); 
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [notificacion, setNotificacion] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [verCarrito, setVerCarrito] = useState(false);
+  const [scrollHome, setScrollHome] = useState(0); // NUEVO: Guarda la posición exacta del scroll
   
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [filtroGenero, setFiltroGenero] = useState('Todos');
   const [filtroPrecio, setFiltroPrecio] = useState(1000);
   const [filtroTalla, setFiltroTalla] = useState('Todas');
 
+  // =========================================================
+  // INTERCEPTAR BOTÓN "ATRÁS" DEL CELULAR / NAVEGADOR
+  // =========================================================
+  useEffect(() => {
+    window.history.pushState(null, null, window.location.href);
+
+    const handleBotonAtras = () => {
+      if (verCarrito) {
+        setVerCarrito(false);
+        window.history.pushState(null, null, window.location.href);
+      } else if (vista !== 'inicio') {
+        irAlInicio(); // Llamamos a nuestra función mejorada
+        window.history.pushState(null, null, window.location.href);
+      }
+    };
+
+    window.addEventListener('popstate', handleBotonAtras);
+    return () => window.removeEventListener('popstate', handleBotonAtras);
+  }, [vista, verCarrito, scrollHome]); 
+
+  // =========================================================
+  // INICIALIZACIÓN DE SCROLL SUAVE (LENIS)
+  // =========================================================
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.5,
@@ -73,32 +93,17 @@ function App() {
     });
 
     window.lenis = lenis; 
-
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
+    function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
     requestAnimationFrame(raf);
-    return () => {
-      lenis.destroy();
-      delete window.lenis;
-    };
+
+    return () => { lenis.destroy(); delete window.lenis; };
   }, []);
 
+  // Cargar BD
   useEffect(() => {
     axios.get('http://localhost/tienda_urban/backend/api/get_productos.php')
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          setProductos(res.data); 
-        } else {
-          console.log("Base de datos vacía, usando catálogo de prueba.");
-          setProductos(productosDePrueba); 
-        }
-      })
-      .catch(err => {
-        console.error("Servidor backend apagado, usando catálogo de prueba.", err);
-        setProductos(productosDePrueba); 
-      });
+      .then(res => setProductos(res.data && res.data.length > 0 ? res.data : productosDePrueba))
+      .catch(() => setProductos(productosDePrueba));
   }, []);
 
   const productosFiltrados = productos.filter(p => {
@@ -118,7 +123,7 @@ function App() {
 
   const agregarAlCarrito = (producto, cantidad, talla, color, irAPagoDirecto = false) => {
     const nuevosItems = Array(cantidad).fill({ ...producto, talla, color });
-    setCarrito([...carrito, ...nuevosItems]); // Esto activará el useEffect de localStorage
+    setCarrito([...carrito, ...nuevosItems]); 
     
     if (irAPagoDirecto) {
       irAlCheckout();
@@ -132,7 +137,11 @@ function App() {
   const eliminarDelCarrito = (index) => setCarrito(carrito.filter((_, i) => i !== index));
   const total = carrito.reduce((sum, p) => sum + parseFloat(p.precio), 0);
 
+  // =========================================================
+  // SISTEMA DE NAVEGACIÓN CON MEMORIA DE SCROLL
+  // =========================================================
   const verDetalleProducto = (prod) => { 
+    setScrollHome(window.scrollY); // 1. Guardamos la posición exacta en el catálogo
     setProductoSeleccionado(prod); 
     setVista('detalle'); 
   };
@@ -140,29 +149,36 @@ function App() {
   const irAlInicio = () => { 
     setVista('inicio'); 
     setProductoSeleccionado(null); 
-    setBusqueda('');
+    // NOTA: Ya no reseteamos "setBusqueda('')" para que conserve lo que escribió
+    
+    // 2. Restauramos la posición del scroll con un pequeño retraso para que cargue el DOM
+    setTimeout(() => {
+      if (window.lenis) {
+        window.lenis.scrollTo(scrollHome, { immediate: true });
+      } else {
+        window.scrollTo({ top: scrollHome, behavior: 'instant' });
+      }
+    }, 50);
   };
 
   const irAlCheckout = () => { 
+    if (vista === 'inicio') setScrollHome(window.scrollY); // Guardar scroll si viene desde el home
     setVerCarrito(false); 
     setVista('checkout'); 
   };
 
-  const pageTransition = { duration: 0.8, ease: [0.22, 1, 0.36, 1] };
-
   const resetFiltros = () => {
-    setFiltroCategoria('Todos');
-    setFiltroGenero('Todos');
-    setFiltroPrecio(1000);
-    setFiltroTalla('Todas');
-    setBusqueda('');
+    setFiltroCategoria('Todos'); setFiltroGenero('Todos');
+    setFiltroPrecio(1000); setFiltroTalla('Todas'); setBusqueda('');
   };
+
+  const pageTransition = { duration: 0.6, ease: [0.16, 1, 0.3, 1] };
 
   return (
     <div className="app-container">
       <AnimatePresence>
         {notificacion && (
-          <motion.div className="toast" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+          <motion.div className="toast" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.6 }}>
             <CheckCircle size={18} /> {notificacion}
           </motion.div>
         )}

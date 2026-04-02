@@ -1,212 +1,242 @@
-import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowLeft, Minus, Plus, ShieldCheck, Truck, X, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, Star, ShieldCheck, Truck, RotateCcw, Plus, Minus, ShoppingBag, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 
 export default function ProductDetail({ 
-  productoSeleccionado, irAlInicio, setFiltroCategoria, 
-  agregarAlCarrito, productosRelacionados, verDetalleProducto 
+  productoSeleccionado, 
+  irAlInicio, 
+  setFiltroCategoria, 
+  agregarAlCarrito, 
+  productosRelacionados, 
+  verDetalleProducto 
 }) {
-  const [tallaSeleccionada, setTallaSeleccionada] = useState('M');
+  const [tallaSeleccionada, setTallaSeleccionada] = useState('');
+  const [cantidad, setCantidad] = useState(1);
   const [colorSeleccionado, setColorSeleccionado] = useState('Negro');
-  const [cantidadSeleccionada, setCantidadSeleccionada] = useState(1);
-  const [mostrarGuiaTallas, setMostrarGuiaTallas] = useState(false);
-  const [acordeonActivo, setAcordeonActivo] = useState('detalles'); 
-
-  // Referencia al contenedor principal para el Parallax Cinematográfico
-  const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({ 
-    target: containerRef, 
-    offset: ["start start", "end center"] 
-  });
+  const [acordeonActivo, setAcordeonActivo] = useState('detalles');
   
-  // EFECTO ULTRA PREMIUM: La imagen se traslada suavemente y reduce ligeramente su escala para dar profundidad de campo.
-  const imgY = useTransform(scrollYProgress, [0, 1], ["0%", "15%"]);
-  const imgScale = useTransform(scrollYProgress, [0, 1], [1.1, 1]); 
-  const imgFilter = useTransform(scrollYProgress, [0, 1], ["brightness(1)", "brightness(0.85)"]);
+  // NUEVO: Estado para controlar qué imagen se muestra
+  const [imagenActual, setImagenActual] = useState('');
 
+  const coloresDisponibles = [
+    { nombre: 'Negro', hex: '#1a1a1a' }, 
+    { nombre: 'Blanco', hex: '#f8f9fa' }, 
+    { nombre: 'Gris', hex: '#adb5bd' }
+  ];
+
+  // PROTECCIÓN: Si no llega el producto
+  if (!productoSeleccionado) {
+    return (
+      <div className="empty-state-box" style={{ margin: '100px auto', maxWidth: '600px' }}>
+        <AlertCircle size={60} color="var(--error)" style={{margin: '0 auto 20px'}}/>
+        <h2 style={{fontSize: '2rem', fontWeight: 900, marginBottom: '10px'}}>Producto no encontrado</h2>
+        <p style={{color: 'var(--text-muted)', marginBottom: '30px'}}>Hubo un error al cargar la información de este artículo.</p>
+        <button type="button" className="btn-solid" onClick={() => irAlInicio && irAlInicio()}>
+          Volver al catálogo
+        </button>
+      </div>
+    );
+  }
+
+  const tallasArray = productoSeleccionado.tallas 
+    ? String(productoSeleccionado.tallas).split(',').map(t => t.trim()).filter(t => t !== '') 
+    : ['Única'];
+
+  const precioSeguro = productoSeleccionado.precio && !isNaN(productoSeleccionado.precio) 
+    ? parseFloat(productoSeleccionado.precio).toFixed(2) 
+    : '0.00';
+
+  // RESETEAR DATOS AL CAMBIAR DE PRODUCTO
   useEffect(() => {
     if (window.lenis) window.lenis.scrollTo('top', { immediate: true });
     else window.scrollTo(0, 0);
-  }, [productoSeleccionado]); 
+    
+    if (tallasArray.length > 0) setTallaSeleccionada(tallasArray[0]);
+    
+    // Reseteamos el color y la imagen a la principal del producto
+    setColorSeleccionado('Negro');
+    setImagenActual(productoSeleccionado.imagen);
+    setCantidad(1);
+  }, [productoSeleccionado]);
 
-  const coloresDisponibles = [
-    { nombre: 'Negro', hex: '#1a1a1a' }, { nombre: 'Blanco', hex: '#f8f9fa' }, { nombre: 'Gris', hex: '#adb5bd' }
-  ];
+  // ========================================================
+  // LÓGICA DE CAMBIO DE IMAGEN POR COLOR
+  // ========================================================
+  const handleCambioColor = (color) => {
+    setColorSeleccionado(color.nombre);
 
-  const premiumEase = [0.22, 1, 0.36, 1];
+    // 1. Si tu base de datos ya tuviera un campo "imagenes_variaciones":
+    // if (productoSeleccionado.variaciones && productoSeleccionado.variaciones[color.nombre]) {
+    //   setImagenActual(productoSeleccionado.variaciones[color.nombre]);
+    //   return;
+    // }
 
-  // 1. Animación del contenedor (Cortina Reveal)
-  const imageWrapperVariant = {
-    hidden: { opacity: 0, clipPath: "inset(20% 0 20% 0 round 24px)" },
-    show: { 
-      opacity: 1, 
-      clipPath: "inset(0% 0 0% 0 round 24px)", 
-      transition: { duration: 1.4, ease: premiumEase } 
+    // 2. SIMULACIÓN PREMIUM (Borrar cuando conectes las fotos reales en tu BD)
+    if (color.nombre === 'Negro') {
+      setImagenActual(productoSeleccionado.imagen);
+    } 
+    else if (color.nombre === 'Blanco') {
+      setImagenActual(productoSeleccionado.categoria === 'Zapatillas' 
+        ? 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=800&auto=format&fit=crop' 
+        : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop');
+    } 
+    else if (color.nombre === 'Gris') {
+      setImagenActual(productoSeleccionado.categoria === 'Zapatillas'
+        ? 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?q=80&w=800&auto=format&fit=crop'
+        : 'https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop');
     }
   };
 
-  // 2. Animación de Cascada fluida para el contenido derecho
-  const staggerContainer = { 
-    hidden: { opacity: 0 }, 
-    show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.4 } } 
+  const handleAgregar = (pagoDirecto = false) => {
+    if (agregarAlCarrito) {
+      // Pasamos el color y la imagen actual elegida para que salga en el carrito
+      agregarAlCarrito({
+        ...productoSeleccionado,
+        imagen: imagenActual // Guarda la foto del color elegido
+      }, cantidad, tallaSeleccionada || 'Única', colorSeleccionado, pagoDirecto);
+    }
   };
-  const itemVariant = { 
-    hidden: { opacity: 0, y: 50 }, 
-    show: { opacity: 1, y: 0, transition: { duration: 1, ease: premiumEase } } 
-  };
+
+  const staggerContainer = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const fadeInUp = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } } };
 
   return (
-    <motion.div 
-      className="product-page"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
-    >
-      <motion.div className="breadcrumb" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.8, ease: premiumEase }}>
-        <span onClick={irAlInicio}>Inicio</span> <ChevronRight size={14} /> 
-        <span onClick={() => { setFiltroCategoria(productoSeleccionado.categoria); irAlInicio(); }}>{productoSeleccionado.categoria}</span> <ChevronRight size={14} /> 
+    <motion.div className="product-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      
+      <div className="breadcrumb">
+        <span onClick={() => irAlInicio && irAlInicio()}>Inicio</span> / 
+        <span onClick={() => { setFiltroCategoria(productoSeleccionado.categoria); irAlInicio(); }}>
+          {productoSeleccionado.categoria || 'Catálogo'}
+        </span> / 
         <span className="current">{productoSeleccionado.nombre}</span>
-      </motion.div>
+      </div>
 
-      <motion.button className="back-btn" onClick={irAlInicio} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-        <ArrowLeft size={18} /> Volver al catálogo
-      </motion.button>
+      <button type="button" className="back-btn" onClick={() => irAlInicio && irAlInicio()}>
+        <ChevronLeft size={20} /> Volver al catálogo
+      </button>
 
-      <div className="product-detail-container" ref={containerRef}>
+      <div className="product-detail-container">
         
-        {/* COLUMNA IZQUIERDA: IMAGEN STICKY + PARALLAX */}
-        <div className="product-detail-left">
-          <motion.div 
-            className="product-detail-image-wrapper" 
-            variants={imageWrapperVariant}
-            initial="hidden"
-            animate="show"
-          >
-            {/* Vinculamos el estilo a los hooks de framer-motion */}
-            <motion.img 
-              src={productoSeleccionado.imagen} 
-              alt={productoSeleccionado.nombre} 
-              className="product-detail-img" 
-              initial={{ scale: 1.3 }}
-              animate={{ scale: 1.1 }}
-              transition={{ duration: 1.6, ease: premiumEase }}
-              style={{ y: imgY, scale: imgScale, filter: imgFilter, willChange: 'transform' }} 
-            />
-          </motion.div>
-        </div>
-        
-        {/* COLUMNA DERECHA: TEXTOS Y OPCIONES */}
+        {/* COLUMNA IZQUIERDA: IMAGEN CON ANIMACIÓN DE CROSSFADE */}
+        <motion.div className="product-detail-left" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}>
+          <div className="product-detail-image-wrapper" style={{ position: 'relative' }}>
+            <AnimatePresence mode="wait">
+              <motion.img 
+                key={imagenActual} // Esto le dice a Framer Motion que anime cuando cambie el link
+                src={imagenActual || 'https://via.placeholder.com/600x800?text=Sin+Imagen'} 
+                alt={productoSeleccionado.nombre} 
+                className="product-detail-img"
+                onError={(e) => { e.target.src = 'https://via.placeholder.com/600x800?text=Urban+Store'; }}
+                initial={{ opacity: 0, filter: 'blur(10px)' }}
+                animate={{ opacity: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, filter: 'blur(10px)' }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
+                style={{ position: 'absolute', top: '-10%', left: 0, width: '100%', height: '120%', objectFit: 'cover' }}
+              />
+            </AnimatePresence>
+          </div>
+        </motion.div>
+
         <motion.div className="product-detail-right" variants={staggerContainer} initial="hidden" animate="show">
-          <motion.div className="detail-header" variants={itemVariant}>
-            <span className="category-label-premium">{productoSeleccionado.categoria}</span>
+          <motion.div className="detail-header" variants={fadeInUp}>
+            <span className="category-label-premium">{productoSeleccionado.categoria} • {productoSeleccionado.genero}</span>
             <h1 className="detail-title">{productoSeleccionado.nombre}</h1>
-            <p className="detail-price">S/ {productoSeleccionado.precio}</p>
-          </motion.div>
-          
-          <motion.div className="detail-description" variants={itemVariant}>
-            <p>Diseño exclusivo para el entorno urbano. Materiales de alta resistencia y transpirabilidad superior. Confeccionado pensando en cada detalle para destacar tu estilo y brindarte máxima comodidad durante todo el día. Eleva tu outfit con esta pieza fundamental.</p>
-          </motion.div>
-
-          <motion.div variants={itemVariant} className="premium-selector-container">
-            <div className="premium-selector-box">
-              <h4>Color seleccionado: <span className="val">{colorSeleccionado}</span></h4>
-              <div className="color-options">
-                {coloresDisponibles.map(color => (
-                  <motion.button 
-                    key={color.nombre} 
-                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                    className={`color-btn ${colorSeleccionado === color.nombre ? 'active' : ''}`} 
-                    style={{ backgroundColor: color.hex }} 
-                    onClick={() => setColorSeleccionado(color.nombre)} 
-                    title={color.nombre} 
-                  />
-                ))}
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
+              <h2 className="detail-price">S/ {precioSeguro}</h2>
+              <div style={{display: 'flex', color: '#fbbf24', alignItems: 'center', gap: '4px'}}>
+                <Star size={18} fill="currentColor" /><Star size={18} fill="currentColor" /><Star size={18} fill="currentColor" /><Star size={18} fill="currentColor" /><Star size={18} fill="currentColor" />
+                <span style={{color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '5px'}}>(4.9/5)</span>
               </div>
-            </div>
-
-            <div className="premium-selector-box">
-              <h4>Talla: <span className="val">{tallaSeleccionada}</span> <span className="size-guide-link" onClick={() => setMostrarGuiaTallas(true)}>Ver guía de tallas</span></h4>
-              <div className="sizes">
-                {['S', 'M', 'L', 'XL', 'XXL'].map(talla => (
-                  <button key={talla} className={`size-btn ${tallaSeleccionada === talla ? 'active' : ''}`} onClick={() => setTallaSeleccionada(talla)}>{talla}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="premium-selector-box quantity-box">
-              <h4>Cantidad:</h4>
-              <div className="quantity-controls">
-                <button onClick={() => setCantidadSeleccionada(Math.max(1, cantidadSeleccionada - 1))}><Minus size={16}/></button>
-                <motion.span key={cantidadSeleccionada} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{cantidadSeleccionada}</motion.span>
-                <button onClick={() => setCantidadSeleccionada(cantidadSeleccionada + 1)}><Plus size={16}/></button>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div className="action-buttons-container" variants={itemVariant}>
-            <div className="dual-buttons">
-              <motion.button 
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className="btn-outline" 
-                onClick={() => agregarAlCarrito(productoSeleccionado, cantidadSeleccionada, tallaSeleccionada, colorSeleccionado, false)}
-              >
-                AÑADIR A LA CESTA
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.02, backgroundColor: '#222' }} whileTap={{ scale: 0.98 }}
-                className="btn-solid" 
-                onClick={() => agregarAlCarrito(productoSeleccionado, cantidadSeleccionada, tallaSeleccionada, colorSeleccionado, true)}
-              >
-                COMPRAR AHORA
-              </motion.button>
             </div>
             
-            <div className="trust-badges">
-              <div className="badge-item"><ShieldCheck size={20} color="#28a745"/> <span>Pagos 100% Seguros. Encriptación SSL.</span></div>
-              <div className="badge-item"><Truck size={20} color="#000"/> <span>Envío garantizado a todo el Perú en 24/48h.</span></div>
+            <p className="detail-description">
+              Diseño exclusivo de alta calidad. Confeccionado con materiales premium para garantizar el mejor ajuste, comodidad y durabilidad en tu día a día. Eleva tu estilo urbano con esta pieza indispensable.
+            </p>
+          </motion.div>
+
+          {/* SELECTOR DE COLORES MEJORADO */}
+          <motion.div className="premium-selector-box" variants={fadeInUp}>
+            <h4>Color seleccionado: <span className="val">{colorSeleccionado}</span></h4>
+            <div className="color-options">
+              {coloresDisponibles.map(color => (
+                <button 
+                  key={color.nombre} 
+                  type="button"
+                  className={`color-btn ${colorSeleccionado === color.nombre ? 'active' : ''}`} 
+                  style={{ backgroundColor: color.hex }} 
+                  onClick={() => handleCambioColor(color)} 
+                  title={color.nombre} 
+                />
+              ))}
             </div>
           </motion.div>
 
-          <motion.div className="premium-accordion" variants={itemVariant}>
-            <div className="accordion-item">
-              <button className="accordion-header" onClick={() => setAcordeonActivo(acordeonActivo === 'detalles' ? '' : 'detalles')}>
-                Características y Cuidado
-                <motion.div animate={{ rotate: acordeonActivo === 'detalles' ? 180 : 0 }} transition={{duration: 0.4, ease: premiumEase}}><ChevronDown size={20}/></motion.div>
-              </button>
-              <AnimatePresence>
-                {acordeonActivo === 'detalles' && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{duration: 0.4, ease: premiumEase}} className="accordion-content" style={{ overflow: 'hidden' }}>
-                    <ul style={{ paddingLeft: '20px', marginTop: '10px' }}>
-                      <li style={{marginBottom: '8px'}}>Composición: 100% Algodón orgánico de alto gramaje.</li>
-                      <li style={{marginBottom: '8px'}}>Corte: Oversize / Relaxed Fit con caída estructurada.</li>
-                      <li style={{marginBottom: '8px'}}>Detalles: Costuras reforzadas, no encoge al lavar.</li>
-                      <li style={{marginBottom: '8px'}}>Cuidado: Lavar en frío, secar a la sombra.</li>
-                    </ul>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="accordion-item">
-              <button className="accordion-header" onClick={() => setAcordeonActivo(acordeonActivo === 'envios' ? '' : 'envios')}>
-                Envíos y Devoluciones
-                <motion.div animate={{ rotate: acordeonActivo === 'envios' ? 180 : 0 }} transition={{duration: 0.4, ease: premiumEase}}><ChevronDown size={20}/></motion.div>
-              </button>
-              <AnimatePresence>
-                {acordeonActivo === 'envios' && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{duration: 0.4, ease: premiumEase}} className="accordion-content" style={{ overflow: 'hidden' }}>
-                    <p style={{ marginTop: '10px', marginBottom: '10px' }}><strong>Envío Standard:</strong> S/ 15.00 (Llega en 2 a 3 días hábiles).</p>
-                    <p style={{ marginBottom: '10px' }}><strong>Envío Express Lima:</strong> S/ 25.00 (Llega el mismo día si compras antes de la 1 PM).</p>
-                    <p>Devoluciones gratuitas dentro de los primeros 7 días luego de recibir el producto (aplican T&C). Solicita el cambio fácilmente desde tu cuenta.</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+          <motion.div className="premium-selector-box" variants={fadeInUp}>
+            <h4>Selecciona tu Talla <span className="val">{tallaSeleccionada}</span></h4>
+            <div className="sizes">
+              {tallasArray.map((t) => (
+                <button type="button" key={t} className={`size-btn ${tallaSeleccionada === t ? 'active' : ''}`} onClick={() => setTallaSeleccionada(t)}>
+                  {t}
+                </button>
+              ))}
             </div>
           </motion.div>
 
+          <motion.div className="premium-selector-box quantity-box" variants={fadeInUp}>
+            <h4>Cantidad</h4>
+            <div className="quantity-controls">
+              <button type="button" onClick={() => setCantidad(Math.max(1, cantidad - 1))}><Minus size={18}/></button>
+              <span>{cantidad}</span>
+              <button type="button" onClick={() => setCantidad(cantidad + 1)}><Plus size={18}/></button>
+            </div>
+          </motion.div>
+
+          <motion.div className="action-buttons-container dual-buttons" variants={fadeInUp}>
+            <button type="button" className="btn-outline" onClick={() => handleAgregar(false)}>
+              <ShoppingBag size={20} style={{display: 'inline', marginRight: '10px', verticalAlign: 'middle'}}/>
+              Añadir a la Cesta
+            </button>
+            <button type="button" className="btn-solid" onClick={() => handleAgregar(true)}>
+              Comprar Ahora
+            </button>
+          </motion.div>
+
+          <motion.div className="trust-badges" variants={fadeInUp}>
+            <div className="badge-item"><Truck size={22} color="var(--accent)" /> Envío gratis en pedidos superiores a S/ 200.</div>
+            <div className="badge-item"><ShieldCheck size={22} color="var(--success)" /> Garantía de calidad de 30 días.</div>
+            <div className="badge-item"><RotateCcw size={22} color="var(--text-muted)" /> Cambios y devoluciones sin complicaciones.</div>
+          </motion.div>
+
+          <motion.div className="premium-accordion" variants={fadeInUp}>
+            {[
+              { id: 'detalles', title: 'Detalles del Producto', content: 'Corte relajado/oversize. Costuras reforzadas de alta densidad. Logo en alta resolución. Etiqueta interna tejida premium.' },
+              { id: 'materiales', title: 'Composición y Cuidado', content: '100% Algodón pima peinado. Lavar a máquina con agua fría. No usar blanqueador. Secar a la sombra para mantener el color intacto.' },
+              { id: 'envios', title: 'Envíos y Entregas', content: 'Lima Metropolitana: 1 a 2 días hábiles. Provincias: 3 a 5 días hábiles mediante Olva Courier o Shalom.' }
+            ].map((item) => (
+              <div className="accordion-item" key={item.id}>
+                <button type="button" className="accordion-header" onClick={() => setAcordeonActivo(acordeonActivo === item.id ? '' : item.id)}>
+                  {item.title}
+                  {acordeonActivo === item.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
+                <AnimatePresence>
+                  {acordeonActivo === item.id && (
+                    <motion.div 
+                      className="accordion-content" 
+                      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} 
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <p>{item.content}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </motion.div>
         </motion.div>
       </div>
 
-      {/* PRODUCTOS RELACIONADOS */}
-      {productosRelacionados.length > 0 && (
+      {productosRelacionados && productosRelacionados.length > 0 && (
         <div className="related-products">
           <div className="related-header">
             <h2>Completa tu look</h2>
@@ -214,11 +244,11 @@ export default function ProductDetail({
           </div>
           <div className="products-grid">
             {productosRelacionados.map((prod, i) => (
-              <motion.div key={prod.id} className="product-card" onClick={() => verDetalleProducto(prod)} 
-                initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.8, delay: i * 0.1, ease: premiumEase }}
+              <motion.div key={prod.id} className="product-card" onClick={() => verDetalleProducto && verDetalleProducto(prod)} 
+                initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.8, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="image-wrapper" style={{overflow: 'hidden'}}>
-                  <motion.img src={prod.imagen || 'https://via.placeholder.com/400x500?text=Sin+Imagen'} alt={prod.nombre} className="product-img" whileHover={{ scale: 1.08 }} transition={{ duration: 0.8, ease: premiumEase }} />
+                  <motion.img src={prod.imagen || 'https://via.placeholder.com/400x500?text=Sin+Imagen'} alt={prod.nombre} className="product-img" whileHover={{ scale: 1.05 }} transition={{ duration: 0.6 }} />
                   <div className="quick-view">Ver Detalles</div>
                 </div>
                 <div className="product-info">
@@ -231,20 +261,6 @@ export default function ProductDetail({
           </div>
         </div>
       )}
-
-      {/* MODAL GUIA DE TALLAS */}
-      <AnimatePresence>
-        {mostrarGuiaTallas && (
-          <motion.div className="modal-overlay" onClick={() => setMostrarGuiaTallas(false)} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{ duration: 0.4 }}>
-            <motion.div className="modal-content" onClick={(e) => e.stopPropagation()} initial={{scale:0.95, opacity: 0, y: 20}} animate={{scale:1, opacity: 1, y: 0}} exit={{scale:0.95, opacity: 0, y: 20}} transition={{ duration: 0.6, ease: premiumEase}}>
-              <X className="close-modal" onClick={() => setMostrarGuiaTallas(false)} size={24} />
-              <h3 style={{fontWeight: 900, fontSize: '1.5rem', marginBottom: '10px'}}>GUÍA DE TALLAS</h3>
-              <p style={{color: '#666', fontSize: '0.9rem'}}>Encuentra la medida perfecta para ti.</p>
-              <img src="https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?q=80&w=800&auto=format&fit=crop" alt="Guía de tallas" className="modal-img" />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
