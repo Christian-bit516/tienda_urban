@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function ProductsManager() {
   const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroCategoria, setFiltroCategoria] = useState('Todas'); // ESTADO DEL FILTRO
+  const [filtroCategoria, setFiltroCategoria] = useState('Todas');
   
   const [modalVisible, setModalVisible] = useState(false);
   const [modoModal, setModoModal] = useState('crear'); 
@@ -34,7 +34,7 @@ export default function ProductsManager() {
     return () => { document.body.style.overflow = ''; };
   }, [modalVisible]);
 
-  // LÓGICA DE FILTRADO COMBINADO (Buscador + Categoría)
+  // LÓGICA DE FILTRADO (Buscador + Categoría)
   const filtrados = productos.filter(p => {
     const coincideBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
     const coincideCategoria = filtroCategoria === 'Todas' || p.categoria === filtroCategoria;
@@ -128,7 +128,7 @@ export default function ProductsManager() {
           </select>
         </div>
 
-        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn-primary" onClick={abrirCrear}>
+        <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn-primary" onClick={abrirCrear}>
           <Plus size={18} /> Nuevo Artículo
         </motion.button>
       </div>
@@ -168,8 +168,8 @@ export default function ProductsManager() {
                       
                       <td>
                         <div className="actions-wrapper">
-                          <button className="action-btn edit" onClick={() => abrirEditar(p)} title="Editar"><Edit size={16} /></button>
-                          <button className="action-btn delete" onClick={() => handleEliminar(p.id, p.nombre)} title="Eliminar"><Trash2 size={16} /></button>
+                          <button type="button" className="action-btn edit" onClick={() => abrirEditar(p)} title="Editar"><Edit size={16} /></button>
+                          <button type="button" className="action-btn delete" onClick={() => handleEliminar(p.id, p.nombre)} title="Eliminar"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </motion.tr>
@@ -189,7 +189,7 @@ export default function ProductsManager() {
             <motion.div className="modal-box" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}>
               <div className="modal-header">
                 <h2>{modoModal === 'crear' ? 'Añadir Producto' : 'Editar Producto'}</h2>
-                <button className="close-btn" onClick={() => setModalVisible(false)}><X size={20} /></button>
+                <button type="button" className="close-btn" onClick={() => setModalVisible(false)}><X size={20} /></button>
               </div>
               
               <form onSubmit={handleGuardar} className="admin-form" data-lenis-prevent="true">
@@ -202,7 +202,7 @@ export default function ProductsManager() {
                     ) : (
                       <div className="upload-placeholder">
                         <UploadCloud size={30} style={{marginBottom: '10px'}}/>
-                        <span>Haz clic para importar imagen desde tu PC</span>
+                        <span style={{display: 'block'}}>Haz clic para importar imagen desde tu PC</span>
                       </div>
                     )}
                   </label>
@@ -230,7 +230,7 @@ export default function ProductsManager() {
               </form>
 
               <div className="modal-footer">
-                <motion.button whileTap={{ scale: 0.98 }} className="btn-solid-accent" onClick={handleGuardar} disabled={guardando}>
+                <motion.button type="submit" whileTap={{ scale: 0.98 }} className="btn-solid-accent" onClick={handleGuardar} disabled={guardando}>
                   {guardando ? <><Loader2 size={18} className="spinner" style={{display:'inline', marginRight:'8px', verticalAlign:'middle'}}/> Guardando...</> : 'Guardar Cambios'}
                 </motion.button>
               </div>

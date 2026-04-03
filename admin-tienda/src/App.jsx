@@ -7,6 +7,9 @@ import ProductsManager from './components/ProductsManager';
 import OrdersManager from './components/OrdersManager';
 import Dashboard from './components/Dashboard';
 
+// IMPORTAMOS NUESTRO NUEVO ASISTENTE IA
+import AIAssistant from './components/AIAssistant';
+
 import './App.css';
 
 export const productosDePrueba = [
@@ -37,7 +40,6 @@ export default function App() {
 
   return (
     <>
-      {/* Fondo Mágico Animado */}
       <div className="ambient-bg">
         <div className="ambient-orb orb-1"></div>
         <div className="ambient-orb orb-2"></div>
@@ -77,6 +79,9 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* COMPONENTE DE IA FLOTANTE */}
+        <AIAssistant />
       </div>
     </>
   );
