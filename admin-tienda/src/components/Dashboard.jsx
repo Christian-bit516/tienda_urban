@@ -8,11 +8,22 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ productos: 0, pedidos: 0, ingresos: 0 });
   const [pedidosRecientes, setPedidosRecientes] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const hora = new Date().getHours();
-  const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const [saludo, setSaludo] = useState('Hola');
 
   useEffect(() => {
+    // Calculador de hora en tiempo real y robusto
+    const actualizarSaludo = () => {
+      const horaLocal = new Date().getHours();
+      if (horaLocal >= 5 && horaLocal < 12) return 'Buenos días';
+      if (horaLocal >= 12 && horaLocal < 19) return 'Buenas tardes';
+      return 'Buenas noches';
+    };
+
+    setSaludo(actualizarSaludo());
+    
+    // Lo actualiza automáticamente por si dejas la pestaña abierta todo el día
+    const intervaloHora = setInterval(() => setSaludo(actualizarSaludo()), 60000);
+
     Promise.all([
       axios.get('http://localhost/tienda_urban/backend/api/get_productos.php').catch(() => ({ data: productosDePrueba })),
       axios.get('http://localhost/tienda_urban/backend/api/get_pedidos.php').catch(() => ({ data: [] }))
@@ -27,21 +38,20 @@ export default function Dashboard() {
       
       setTimeout(() => setLoading(false), 500);
     });
+
+    return () => clearInterval(intervaloHora);
   }, []);
 
   const stagger = { show: { transition: { staggerChildren: 0.1 } } };
-  const fadeUp = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } } };
+  const fadeUp = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } };
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="dashboard-wrapper">
-      
-      {/* CABECERA */}
       <motion.div variants={fadeUp} className="dashboard-header-text">
         <h2>{saludo}, Admin.</h2>
         <p>Aquí tienes el rendimiento de Urban Store al día de hoy.</p>
       </motion.div>
 
-      {/* TARJETAS KPI */}
       <div className="dash-stats-grid">
         <motion.div className="dash-stat-card" variants={fadeUp}>
           <div className="dash-stat-header"><span>Ingresos Brutos</span> <div className="dash-stat-icon"><DollarSign size={20} /></div></div>
@@ -68,10 +78,7 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      {/* ZONA DE WIDGETS (Gráfico + Pedidos) */}
       <div className="dash-widgets-layout">
-        
-        {/* GRÁFICO VECTORIAL */}
         <motion.div className="dash-widget chart-widget" variants={fadeUp}>
           <div className="dash-widget-header">
             <div>
@@ -104,7 +111,6 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* LISTA DE PEDIDOS */}
         <motion.div className="dash-widget orders-widget" variants={fadeUp}>
           <div className="dash-widget-header">
             <div>
@@ -135,7 +141,6 @@ export default function Dashboard() {
             )}
           </div>
         </motion.div>
-
       </div>
     </motion.div>
   );

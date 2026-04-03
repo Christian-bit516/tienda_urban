@@ -1,190 +1,214 @@
-import { useState, useRef, useEffect } from 'react';
-import { Bot, Sparkles, X, Send, Loader2, Zap, Copy, Check, Trash2, LineChart, PenTool } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 
 export default function AIAssistant() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
-  const messagesEndRef = useRef(null);
+  const [productos, setProductos] = useState([]);
+  const recognitionRef = useRef(null);
+  
+  const isListeningRef = useRef(false);
+  const productosRef = useRef([]);
+  
+  // Memoria a corto plazo para comandos incompletos
+  const memoriaComandoRef = useRef({ accionPendiente: null, productoPendiente: null });
+  const yaSaludoRef = useRef(false);
 
-  // Auto-scroll al último mensaje
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // 1. CARGAR PRODUCTOS AL INICIO
+  const fetchProductos = async () => {
+    try {
+      const response = await fetch('http://localhost/tienda_urban/backend/api/get_productos.php');
+      const data = await response.json();
+      setProductos(data);
+      productosRef.current = data;
+    } catch (error) {
+      console.error("Error al cargar inventario para la IA:", error);
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping, isOpen]);
+    fetchProductos();
+  }, []);
 
-  // Copiar al portapapeles
-  const handleCopy = (text, id) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  // 2. VOZ DE LA IA
+  const hablarTexto = (texto) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); 
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(texto);
+        utterance.lang = 'es-ES';
+        utterance.rate = 1.0; 
+        utterance.pitch = 1.0; 
+        
+        const voces = window.speechSynthesis.getVoices();
+        const vozEspanol = voces.find(voz => voz.lang.startsWith('es') && voz.localService);
+        if (vozEspanol) utterance.voice = vozEspanol;
+        
+        window.speechSynthesis.speak(utterance);
+      }, 50);
+    }
   };
 
-  const handleSend = (textToSend = input) => {
-    if (!textToSend.trim()) return;
+  // 3. CEREBRO LOCAL (Órdenes directas sin palabra clave)
+  const procesarOrdenDirecta = async (textoUsuario) => {
+    // Normalizamos quitando tildes y pasando a minúsculas
+    const texto = textoUsuario.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
-    const newUserMsg = { id: Date.now(), role: 'user', text: textToSend };
-    setMessages(prev => [...prev, newUserMsg]);
-    setInput('');
-    setIsTyping(true);
+    // Resetear memoria si se lo pides
+    if (texto.includes('cancelar') || texto.includes('olvidalo') || texto.includes('nada')) {
+      memoriaComandoRef.current = { accionPendiente: null, productoPendiente: null };
+      hablarTexto("Orden cancelada.");
+      return;
+    }
 
-    // ========================================================
-    // LÓGICA SIMULADA PROFESIONAL (NIVEL ENTERPRISE)
-    // ========================================================
-    setTimeout(() => {
-      setIsTyping(false);
-      let reply = "Estoy analizando los datos de tu tienda para darte la mejor respuesta...";
-      const lowerText = textToSend.toLowerCase();
+    let accion = memoriaComandoRef.current.accionPendiente;
+    let productoObjetivo = memoriaComandoRef.current.productoPendiente;
+    let nuevoPrecio = null;
 
-      if (lowerText.includes('descripción') || lowerText.includes('hoodie')) {
-        reply = `¡Claro! Aquí tienes una descripción optimizada para SEO y conversión:\n\n**Título Sugerido:** Hoodie Urban Essential - Corte Oversize Premium\n\n**Descripción:**\nEleva tu estilo urbano con nuestra pieza insignia. Diseñado para quienes no comprometen la comodidad por el diseño, este hoodie ofrece una silueta moderna y estructurada que se adapta a cualquier look de calle.\n\n**Características principales:**\n• **Material:** 100% Algodón Pima peinado (alta densidad).\n• **Fit:** Oversize relajado con hombros caídos.\n• **Detalles:** Costuras reforzadas y capucha de doble forro.\n• **Cuidado:** Lavado en frío para mantener la fidelidad del color.\n\n*💡 Tip de la IA: Te sugiero hacer upselling ofreciendo un 10% de descuento si lo compran junto a un Pantalón Cargo.*`;
-      } else if (lowerText.includes('ventas') || lowerText.includes('analizar')) {
-        reply = `He analizado tus métricas de los últimos 7 días. Aquí tienes el resumen ejecutivo:\n\n📊 **Rendimiento General:**\n• **Ingresos Totales:** S/ 4,250.00 (**+14.5%** vs sem. anterior)\n• **Tasa de Conversión:** 3.2% (Óptimo)\n• **Ticket Promedio:** S/ 185.00\n\n🏆 **Top Productos:**\n1. Zapatillas Urban Flow X (12 unidades)\n2. Pantalón Cargo Techwear (8 unidades)\n\n⚠️ **Área de Oportunidad:**\nHe notado que la categoría "Accesorios" tiene muchas visitas pero pocas compras. Te sugiero revisar los precios o crear un combo (Ej: Compra unas zapatillas y lleva una gorra a mitad de precio).`;
-      } else if (lowerText.includes('promoción') || lowerText.includes('descuento')) {
-        reply = `Para impulsar las ventas de fin de mes sin dañar tus márgenes de ganancia, te propongo esta estrategia de escasez:\n\n🏷️ **Campaña: "Flash Urban 48H"**\n\n• **Mecánica:** 15% de descuento en carritos superiores a S/ 250.00.\n• **Código:** \`URBAN15\`\n• **Canal:** Email Marketing a clientes que han abandonado el carrito en los últimos 15 días.\n\n*¿Quieres que genere el texto para el correo electrónico de esta campaña?*`;
-      } else {
-        reply = `He registrado tu solicitud: "${textToSend}". \n\nComo soy una versión de demostración en este entorno, mi conocimiento está enfocado en darte ejemplos de **Descripciones de productos**, **Análisis de ventas** y **Estrategias de promoción**. ¡Prueba preguntarme por alguna de esas opciones!`;
+    // Detectar intención si no hay una orden pendiente
+    if (!accion) {
+      if (texto.includes('eliminar') || texto.includes('borrar') || texto.includes('quitar')) {
+        accion = 'eliminar';
+      } else if (texto.includes('precio') || texto.includes('cambiar') || texto.includes('cuesta') || texto.includes('actualizar')) {
+        accion = 'editar_precio';
       }
+    }
 
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: reply }]);
-    }, 1800);
+    // 🛑 FILTRO INTELIGENTE: Si no detecta una orden de borrar o cambiar precio, 
+    // y no está a la mitad de una conversación, ignora el texto por completo.
+    if (!accion) return; 
+
+    // Buscar coincidencia de producto en la base de datos
+    if (!productoObjetivo) {
+      productoObjetivo = productosRef.current.find(prod => {
+        const nombreLimpio = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (texto.includes(nombreLimpio)) return true;
+        
+        const palabrasClave = nombreLimpio.split(' ').filter(p => p.length > 3);
+        return palabrasClave.some(palabra => texto.includes(palabra));
+      });
+    }
+
+    if (accion === 'editar_precio') {
+      const numerosEncontrados = texto.match(/\d+/); 
+      if (numerosEncontrados) nuevoPrecio = numerosEncontrados[0];
+    }
+
+    // ==========================================
+    // EJECUCIÓN A TU BACKEND
+    // ==========================================
+    if (accion === 'eliminar') {
+      if (!productoObjetivo) {
+        memoriaComandoRef.current.accionPendiente = 'eliminar';
+        hablarTexto("¿Qué producto deseas eliminar?");
+      } else {
+        await fetch('http://localhost/tienda_urban/backend/api/eliminar_producto.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: productoObjetivo.id })
+        });
+        
+        hablarTexto(`He eliminado ${productoObjetivo.nombre} del catálogo.`);
+        memoriaComandoRef.current = { accionPendiente: null, productoPendiente: null }; 
+        fetchProductos(); 
+        setTimeout(() => window.location.reload(), 2000); // Recarga para ver cambios
+      }
+    } 
+    
+    else if (accion === 'editar_precio') {
+      if (!productoObjetivo) {
+        memoriaComandoRef.current.accionPendiente = 'editar_precio';
+        hablarTexto("¿A qué producto le cambiamos el precio?");
+      } else if (!nuevoPrecio) {
+        memoriaComandoRef.current.accionPendiente = 'editar_precio';
+        memoriaComandoRef.current.productoPendiente = productoObjetivo;
+        hablarTexto(`¿Cuál será el nuevo precio para ${productoObjetivo.nombre}?`);
+      } else {
+        const formData = new FormData();
+        formData.append('id', productoObjetivo.id);
+        formData.append('nombre', productoObjetivo.nombre);
+        formData.append('precio', nuevoPrecio);
+        formData.append('categoria', productoObjetivo.categoria);
+        formData.append('genero', productoObjetivo.genero);
+        formData.append('tallas', productoObjetivo.tallas);
+        formData.append('imagen_actual', productoObjetivo.imagen);
+
+        await fetch('http://localhost/tienda_urban/backend/api/editar_producto.php', {
+          method: 'POST',
+          body: formData
+        });
+
+        hablarTexto(`Precio actualizado. ${productoObjetivo.nombre} ahora cuesta ${nuevoPrecio} soles.`);
+        memoriaComandoRef.current = { accionPendiente: null, productoPendiente: null }; 
+        fetchProductos();
+        setTimeout(() => window.location.reload(), 2000); // Recarga para ver cambios
+      }
+    } 
   };
 
-  const clearChat = () => setMessages([]);
+  // 4. MOTOR DE ESCUCHA CONTINUA
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
-  // Función para renderizar negritas y saltos de línea simulando Markdown
-  const renderFormattedText = (text) => {
-    return text.split('\n').map((line, i) => {
-      // Reemplaza **texto** por <strong>texto</strong>
-      const parts = line.split(/(\*\*.*?\*\*)/g);
-      return (
-        <span key={i}>
-          {parts.map((part, j) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              return <strong key={j}>{part.slice(2, -2)}</strong>;
-            }
-            return part;
-          })}
-          <br />
-        </span>
-      );
-    });
-  };
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true; 
+    recognition.lang = 'es-ES';
+    recognition.interimResults = false;
 
-  return (
-    <>
-      {/* BOTÓN FLOTANTE */}
-      <motion.button 
-        className="ai-fab" onClick={() => setIsOpen(true)}
-        whileHover={{ scale: 1.05, boxShadow: "0 15px 35px rgba(99, 102, 241, 0.5)" }} whileTap={{ scale: 0.95 }}
-        initial={{ scale: 0 }} animate={{ scale: isOpen ? 0 : 1 }}
-      >
-        <Sparkles size={24} />
-      </motion.button>
+    const arrancarMicrofono = () => {
+      if (isListeningRef.current) return;
+      try {
+        recognition.start();
+        isListeningRef.current = true;
+      } catch (e) {}
+    };
 
-      {/* VENTANA DE CHAT */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            className="ai-chat-window"
-            initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {/* CABECERA */}
-            <div className="ai-chat-header">
-              <div className="ai-header-info">
-                <div className="ai-avatar"><Bot size={20} /></div>
-                <div>
-                  <h4>Urban Intelligence</h4>
-                  <span className="ai-status"><span className="status-dot"></span> Online</span>
-                </div>
-              </div>
-              <div style={{display: 'flex', gap: '10px'}}>
-                {messages.length > 0 && (
-                  <button className="ai-action-btn" onClick={clearChat} title="Limpiar chat"><Trash2 size={16}/></button>
-                )}
-                <button className="ai-action-btn" onClick={() => setIsOpen(false)} title="Cerrar"><X size={20}/></button>
-              </div>
-            </div>
+    // Arranque silencioso en el primer clic
+    const iniciarSistemaOculto = () => {
+      if (!yaSaludoRef.current) {
+        const unlockAudio = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(unlockAudio);
+        
+        setTimeout(() => {
+          hablarTexto("Bienvenido admin, ¿en qué puedo ayudarte?");
+        }, 100);
+        
+        yaSaludoRef.current = true;
+      }
+      arrancarMicrofono();
+      document.removeEventListener('click', iniciarSistemaOculto);
+    };
+    
+    document.addEventListener('click', iniciarSistemaOculto);
 
-            {/* CUERPO DEL CHAT (Scrollable) */}
-            <div className="ai-chat-body" data-lenis-prevent="true">
-              
-              {/* PANTALLA DE BIENVENIDA (Empty State) */}
-              {messages.length === 0 && (
-                <div className="ai-welcome-screen">
-                  <div className="ai-welcome-icon"><Sparkles size={32} /></div>
-                  <h3>¿Cómo puedo ayudarte hoy?</h3>
-                  <p>Soy tu asistente experto en e-commerce. Selecciona una opción o hazme una pregunta directa.</p>
-                  
-                  <div className="ai-suggestions-grid">
-                    <button onClick={() => handleSend("Ayúdame a redactar la descripción para un Hoodie oversize")} className="ai-suggestion-card">
-                      <PenTool size={18} color="#a855f7" />
-                      <span>Redactar Descripción</span>
-                    </button>
-                    <button onClick={() => handleSend("Analizar las ventas recientes y sugerir mejoras")} className="ai-suggestion-card">
-                      <LineChart size={18} color="#3b82f6" />
-                      <span>Analizar Ventas</span>
-                    </button>
-                    <button onClick={() => handleSend("Sugerir promoción de fin de mes para aumentar conversión")} className="ai-suggestion-card">
-                      <Zap size={18} color="#f59e0b" />
-                      <span>Crear Promoción</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+    recognition.onresult = (event) => {
+      const current = event.results.length - 1;
+      const transcript = event.results[current][0].transcript;
+      
+      console.log("IA Escuchó:", transcript);
 
-              {/* LISTA DE MENSAJES */}
-              {messages.map((msg) => (
-                <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`ai-message-wrapper ${msg.role === 'ai' ? 'ai-msg' : 'user-msg'}`}>
-                  {msg.role === 'ai' && <div className="ai-msg-icon"><Sparkles size={14}/></div>}
-                  <div className="ai-message-content">
-                    <div className="ai-message">
-                      {msg.role === 'ai' ? renderFormattedText(msg.text) : msg.text}
-                    </div>
-                    {/* Botón de copiar solo para la IA */}
-                    {msg.role === 'ai' && (
-                      <div className="ai-message-actions">
-                        <button onClick={() => handleCopy(msg.text, msg.id)} className="copy-btn">
-                          {copiedId === msg.id ? <><Check size={12}/> Copiado</> : <><Copy size={12}/> Copiar texto</>}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+      // Enviamos TODO lo que escuche directamente al procesador.
+      // El procesador ignorará el texto si no encuentra órdenes directas.
+      procesarOrdenDirecta(transcript);
+    };
 
-              {/* INDICADOR DE ESCRITURA */}
-              {isTyping && (
-                <div className="ai-message-wrapper ai-msg">
-                  <div className="ai-msg-icon"><Sparkles size={14}/></div>
-                  <div className="ai-message typing-indicator">
-                    <Loader2 size={16} className="spinner" /> Pensando...
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} style={{height: '1px'}} />
-            </div>
+    recognition.onerror = (event) => {
+      if (event.error === 'not-allowed') isListeningRef.current = false;
+    };
 
-            {/* ZONA DE INPUT */}
-            <div className="ai-chat-footer">
-              <input 
-                type="text" placeholder="Pregúntale a Urban AI..." 
-                value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()}
-              />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className="send-btn">
-                <Send size={18} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
+    recognition.onend = () => {
+      isListeningRef.current = false;
+      setTimeout(() => { arrancarMicrofono(); }, 300);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      document.removeEventListener('click', iniciarSistemaOculto);
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null; 
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  return null; // 100% Invisible
 }
